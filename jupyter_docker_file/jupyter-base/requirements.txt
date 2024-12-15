@@ -1,0 +1,19 @@
+# common packages
+numpy
+cryptography
+minio
+bokeh
+cloudpickle
+dill
+matplotlib
+pandas
+scikit-image
+scikit-learn
+scipy
+seaborn
+xgboost
+
+# jupyterlab extensions
+jupyterlab-git
+jupyterlab-system-monitor
+theme-darcula

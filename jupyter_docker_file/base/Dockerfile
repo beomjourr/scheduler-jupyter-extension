@@ -1,0 +1,119 @@
+#
+# NOTE: Use the Makefiles to build this image correctly.
+#
+
+ARG BASE_IMG=<ubuntu>
+FROM $BASE_IMG
+
+ARG TARGETARCH
+
+# common environemnt variables
+ENV NB_GROUP CUBIC
+ENV NB_GID 400
+ENV NB_USER namu
+ENV NB_UID 1001
+ENV NB_PREFIX /
+ENV HOME /home/$NB_USER
+ENV SHELL /bin/bash
+
+# args - software versions
+ARG KUBECTL_VERSION=v1.27.6
+ARG S6_VERSION=v3.1.5.0
+
+# set shell to bash
+SHELL ["/bin/bash", "-c"]
+
+# install - usefull linux packages
+RUN export DEBIAN_FRONTEND=noninteractive \
+   && apt-get -yq update \
+   && apt-get -yq install --no-install-recommends \
+   apt-transport-https \
+   apt-utils \
+   bash \
+   build-essential \
+   bzip2 \
+   ca-certificates \
+   curl \
+   fontconfig \
+   fonts-nanum \
+   git \
+   gnupg \
+   gnupg2 \
+   locales \
+   language-pack-ko \
+   lsb-release \
+   mc \
+   nano \
+   software-properties-common \
+   sudo \
+   tzdata \
+   unzip \
+   vim \
+   wget \
+   xz-utils \
+   zip \
+   libgl1-mesa-glx libcanberra-gtk-module libx11-6 libgtk2.0-0 \
+   libglib2.0-0 libxext6 libsm6 libxrender1 mercurial subversion \
+   && apt-get clean \
+   && rm -rf /var/lib/apt/lists/*
+
+# install - s6 overlay
+RUN case "${TARGETARCH}" in \
+   amd64) S6_ARCH="x86_64" ;; \
+   arm64) S6_ARCH="aarch64" ;; \
+   ppc64le) S6_ARCH="ppc64le" ;; \
+   *) echo "Unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
+   esac \
+   && curl -fsSL "https://github.com/just-containers/s6-overlay/releases/download/${S6_VERSION}/s6-overlay-noarch.tar.xz" -o /tmp/s6-overlay-noarch.tar.xz \
+   && curl -fsSL "https://github.com/just-containers/s6-overlay/releases/download/${S6_VERSION}/s6-overlay-noarch.tar.xz.sha256" -o /tmp/s6-overlay-noarch.tar.xz.sha256 \
+   && echo "$(cat /tmp/s6-overlay-noarch.tar.xz.sha256 | awk '{ print $1; }')  /tmp/s6-overlay-noarch.tar.xz" | sha256sum -c - \
+   && curl -fsSL "https://github.com/just-containers/s6-overlay/releases/download/${S6_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" -o /tmp/s6-overlay-${S6_ARCH}.tar.xz \
+   && curl -fsSL "https://github.com/just-containers/s6-overlay/releases/download/${S6_VERSION}/s6-overlay-${S6_ARCH}.tar.xz.sha256" -o /tmp/s6-overlay-${S6_ARCH}.tar.xz.sha256 \
+   && echo "$(cat /tmp/s6-overlay-${S6_ARCH}.tar.xz.sha256 | awk '{ print $1; }')  /tmp/s6-overlay-${S6_ARCH}.tar.xz" | sha256sum -c - \
+   && tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz \
+   && tar -C / -Jxpf /tmp/s6-overlay-${S6_ARCH}.tar.xz \
+   && rm /tmp/s6-overlay-noarch.tar.xz  \
+   /tmp/s6-overlay-noarch.tar.xz.sha256 \
+   /tmp/s6-overlay-${S6_ARCH}.tar.xz \
+   /tmp/s6-overlay-${S6_ARCH}.tar.xz.sha256
+
+# install - kubectl
+RUN curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" -o /usr/local/bin/kubectl \
+   && curl -fsSL "https://dl.k8s.io/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl.sha256" -o /tmp/kubectl.sha256 \
+   && echo "$(cat /tmp/kubectl.sha256 | awk '{ print $1; }')  /usr/local/bin/kubectl" | sha256sum -c - \
+   && rm /tmp/kubectl.sha256 \
+   && chmod +x /usr/local/bin/kubectl
+
+# create user and set required ownership
+RUN groupadd -g 1337 namugroup
+RUN groupadd -g ${NB_GID} ${NB_GROUP}
+RUN useradd -M -s /bin/bash -N -u ${NB_UID} -g ${NB_GID} ${NB_USER} \
+   && mkdir -p ${HOME} \
+   && chown -R ${NB_USER}:${NB_GROUP} ${HOME} \
+   && chown -R ${NB_USER}:${NB_GROUP} /usr/local/bin
+
+RUN usermod -aG sudo namu
+RUN echo "namu ALL=(ALL:ALL) NOPASSWD:ALL" | tee /etc/sudoers.d/namu
+
+RUN touch ${HOME}/.sudo_as_admin_successful
+
+# set time-zone  ASIA/SEOUL
+RUN ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime
+
+# set locale configs
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen \
+   && locale-gen
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+
+# set korean locale
+RUN localedef -f UTF-8 -i ko_KR ko_KR.UTF-8
+ENV LANG ko_KR.UTF-8
+ENV LC_ALL ko_KR.UTF-8
+ENV LANGUAGE en_US.UTF-8
+ENV PYTHONIOENCODING=UTF-8
+
+USER $NB_UID
+
+ENTRYPOINT ["/init"]

@@ -1,0 +1,9 @@
+#!/command/with-contenv bash
+# configure git
+cat <<EOF | tee ~/.gitconfig
+[user]
+        name = $userId
+        email = $email
+[http]
+        sslVerify = false
+EOF

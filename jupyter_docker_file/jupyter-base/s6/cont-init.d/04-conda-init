@@ -1,0 +1,4 @@
+#!/command/with-contenv bash
+source ~/.bashrc
+conda init bash
+conda activate base

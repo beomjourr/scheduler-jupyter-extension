@@ -1,0 +1,7 @@
+#!/command/with-contenv bash
+# Resource Monitoring
+cat <<EOF | tee ~/.jupyter/jupyter_lab_config.py
+c.ResourceUseDisplay.mem_limit = $memLimit*1024*1024*1024
+c.ResourceUseDisplay.track_cpu_percent = True
+c.ResourceUseDisplay.cpu_limit = $cpuLimit
+EOF
