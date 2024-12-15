@@ -31,49 +31,43 @@ const playIconStr = `
 const playIcon = new LabIcon({ name: 'scheduler:play', svgstr: playIconStr });
 
 class ContentWidget extends Widget {
-  private currentPath: string = '파일이 선택되지 않았습니다';
-  private commandInput: HTMLInputElement | null = null;
-
   constructor() {
     super();
     this.addClass('jp-scheduler-content');
+    this.currentPath = '파일이 선택되지 않았습니다';
+    this.commandInput = null;
     this.node.innerHTML = schedulerTemplate;
     this.initializeEventHandlers();
   }
 
-  private initializeEventHandlers() {
-    // Store command input reference
+  initializeEventHandlers() {
     this.commandInput = this.node.querySelector('#command');
 
-    // 그룹 토글 기능
     this.node.querySelectorAll('.group-header[data-action="toggle"]').forEach(header => {
       header.addEventListener('click', () => {
         header.classList.toggle('collapsed');
-        (header.nextElementSibling as HTMLElement).classList.toggle('collapsed');
+        header.nextElementSibling.classList.toggle('collapsed');
       });
     });
 
-    // 환경 선택 라디오 버튼
     this.node.querySelectorAll('input[name="envSet"]').forEach(radio => {
-      radio.addEventListener('change', (e: Event) => {
-        const envSelectors = this.node.querySelector('#envSelectors') as HTMLElement;
-        envSelectors.style.display = (e.target as HTMLInputElement).value === 'custom' ? 'block' : 'none';
+      radio.addEventListener('change', (e) => {
+        const envSelectors = this.node.querySelector('#envSelectors');
+        envSelectors.style.display = e.target.value === 'custom' ? 'block' : 'none';
       });
     });
 
-    // 파라미터 추가 기능
     this.initializeParameterHandlers();
 
-    // 제출 기능
     const submitBtn = this.node.querySelector('#submitBtn');
     submitBtn?.addEventListener('click', () => this.handleSubmit());
   }
 
-  private initializeParameterHandlers() {
+  initializeParameterHandlers() {
     const addParamBtn = this.node.querySelector('#addParamBtn');
-    const paramTableBody = this.node.querySelector('#paramTableBody') as HTMLTableSectionElement;
-    const paramKey = this.node.querySelector('#paramKey') as HTMLInputElement;
-    const paramValue = this.node.querySelector('#paramValue') as HTMLInputElement;
+    const paramTableBody = this.node.querySelector('#paramTableBody');
+    const paramKey = this.node.querySelector('#paramKey');
+    const paramValue = this.node.querySelector('#paramValue');
 
     const updateCommand = () => {
       if (this.commandInput && !this.commandInput.disabled) {
@@ -110,23 +104,21 @@ class ContentWidget extends Widget {
     });
   }
 
-  private handleSubmit() {
+  handleSubmit() {
     const requiredFields = {
-      groupName: this.node.querySelector('#groupName') as HTMLSelectElement,
-      taskName: this.node.querySelector('#taskName') as HTMLInputElement,
-      envType: this.node.querySelector('#envType') as HTMLSelectElement,
-      envDetail: this.node.querySelector('#envDetail') as HTMLSelectElement,
-      resourceType: this.node.querySelector('#resourceType') as HTMLSelectElement,
-      resourceDetail: this.node.querySelector('#resourceDetail') as HTMLSelectElement
+      groupName: this.node.querySelector('#groupName'),
+      taskName: this.node.querySelector('#taskName'),
+      envType: this.node.querySelector('#envType'),
+      envDetail: this.node.querySelector('#envDetail'),
+      resourceType: this.node.querySelector('#resourceType'),
+      resourceDetail: this.node.querySelector('#resourceDetail')
     };
 
-    // Check if current path is selected
     if (this.currentPath === '파일이 선택되지 않았습니다') {
       window.alert('필수 항목이 누락되었습니다. 다시 작성 후 생성해 주세요.');
       return;
     }
 
-    // Check all required fields
     for (const [_, field] of Object.entries(requiredFields)) {
       if (!field.value) {
         window.alert('필수 항목이 누락되었습니다. 다시 작성 후 생성해 주세요.');
@@ -134,17 +126,16 @@ class ContentWidget extends Widget {
       }
     }
 
-    // If all validations pass, collect and submit form data
     const formData = {
       groupName: requiredFields.groupName.value,
       taskName: requiredFields.taskName.value,
-      taskDescription: (this.node.querySelector('#taskDescription') as HTMLTextAreaElement).value,
-      envSet: (this.node.querySelector('input[name="envSet"]:checked') as HTMLInputElement).value,
+      taskDescription: this.node.querySelector('#taskDescription').value,
+      envSet: this.node.querySelector('input[name="envSet"]:checked').value,
       envType: requiredFields.envType.value,
       envDetail: requiredFields.envDetail.value,
       resourceType: requiredFields.resourceType.value,
       resourceDetail: requiredFields.resourceDetail.value,
-      parameters: Array.from((this.node.querySelector('#paramTableBody') as HTMLTableElement).querySelectorAll('tr')).map(row => ({
+      parameters: Array.from(this.node.querySelector('#paramTableBody').querySelectorAll('tr')).map(row => ({
         key: row.cells[0].textContent,
         value: row.cells[1].textContent
       })),
@@ -154,14 +145,13 @@ class ContentWidget extends Widget {
     console.log('Form submitted:', formData);
   }
 
-  updateFilePath(path: string) {
+  updateFilePath(path) {
     this.currentPath = path;
     const pathDisplay = this.node.querySelector('.current-path');
     if (pathDisplay) {
       pathDisplay.textContent = `현재 열린 파일: ${this.currentPath}`;
     }
 
-    // Disable command input for .ipynb files
     if (this.commandInput) {
       const isNotebook = path.endsWith('.ipynb');
       this.commandInput.disabled = isNotebook;
@@ -169,31 +159,27 @@ class ContentWidget extends Widget {
     }
   }
 
-  getCurrentPath(): string {
+  getCurrentPath() {
     return this.currentPath;
   }
 }
 
 class SchedulerWidget extends LuminoPanel {
-  private content: ContentWidget;
-
   constructor() {
     super();
     this.addClass('jp-scheduler-widget');
     
-    const layout = this.layout as PanelLayout;
+    const layout = this.layout;
     this.content = new ContentWidget();
     layout.addWidget(this.content);
   }
 
-  updateFilePath(path: string) {
+  updateFilePath(path) {
     this.content.updateFilePath(path);
   }
 }
 
 class SchedulerPanel extends SidePanel {
-  private widget: SchedulerWidget;
-
   constructor() {
     super();
     this.addClass('jp-SchedulerPanel');
@@ -205,21 +191,21 @@ class SchedulerPanel extends SidePanel {
     this.addWidget(this.widget);
   }
 
-  updateFilePath(path: string) {
+  updateFilePath(path) {
     this.widget.updateFilePath(path);
   }
 }
 
-const plugin: JupyterFrontEndPlugin<void> = {
+const plugin = {
   id: 'scheduler-jupyter-extension:plugin',
   description: 'A JupyterLab extension for scheduling.',
   autoStart: true,
   requires: [ICommandPalette, ILabShell, IFileBrowserFactory],
   activate: (
-    app: JupyterFrontEnd,
-    palette: ICommandPalette,
-    labShell: ILabShell,
-    fileBrowserFactory: IFileBrowserFactory
+    app,
+    palette,
+    labShell,
+    fileBrowserFactory
   ) => {
     console.log('JupyterLab extension scheduler-jupyter-extension is activated!');
 
