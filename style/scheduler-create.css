@@ -1,0 +1,337 @@
+.jp-scheduler-widget {
+  background-color: var(--jp-layout-color1);
+  color: var(--jp-ui-font-color1);
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.group {
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: var(--jp-layout-color1);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
+
+.group-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--jp-ui-font-color0);
+}
+
+.collapse-icon {
+  margin-right: 10px;
+  transition: transform 0.3s;
+}
+
+.group-header.collapsed .collapse-icon {
+  transform: rotate(-90deg);
+}
+
+.group-content {
+  display: block;
+  transition: max-height 0.3s ease-out;
+  overflow: hidden;
+}
+
+.group-content.collapsed {
+  display: none;
+}
+
+.form-row {
+  margin-bottom: 12px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: var(--jp-ui-font-color1);
+}
+
+select, input, textarea {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 4px;
+  background-color: var(--jp-input-background);
+  color: var(--jp-ui-font-color1);
+  font-family: var(--jp-ui-font-family);
+}
+
+select:focus, input:focus, textarea:focus {
+  outline: 1px solid var(--jp-brand-color1);
+}
+
+textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.radio-group {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.jp-scheduler-widget {
+  background-color: var(--jp-layout-color1);
+  color: var(--jp-ui-font-color1);
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.group {
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: var(--jp-layout-color1);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
+
+.group-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--jp-ui-font-color0);
+}
+
+.collapse-icon {
+  margin-right: 10px;
+  transition: transform 0.3s;
+}
+
+.group-header.collapsed .collapse-icon {
+  transform: rotate(-90deg);
+}
+
+.group-content {
+  display: block;
+  transition: max-height 0.3s ease-out;
+  overflow: hidden;
+}
+
+.group-content.collapsed {
+  display: none;
+}
+
+.form-row {
+  margin-bottom: 12px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: var(--jp-ui-font-color1);
+}
+
+select, input, textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 4px;
+  background-color: var(--jp-input-background);
+  color: var(--jp-ui-font-color1);
+  font-family: var(--jp-ui-font-family);
+  box-sizing: border-box;
+}
+
+select:focus, input:focus, textarea:focus {
+  outline: 1px solid var(--jp-brand-color1);
+}
+
+textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.radio-group {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.flex-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.flex-2 { flex: 2; }
+.flex-1 { flex: 1; }
+
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.param-table th,
+.param-table td {
+  padding: 8px;
+  text-align: left;
+  border: 1px solid var(--jp-border-color2);
+}
+
+.param-table th {
+  background-color: var(--jp-layout-color2);
+  font-weight: bold;
+}
+
+.param-row-action {
+  text-align: center;
+}
+
+.btn {
+  background-color: var(--jp-brand-color1);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background-color: var(--jp-brand-color0);
+}
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: var(--jp-ui-font-size0);
+}
+
+.btn-danger {
+  background-color: var(--jp-error-color1);
+}
+
+.current-path {
+  margin-top: 8px;
+  font-size: var(--jp-ui-font-size0);
+  color: var(--jp-info-color0);
+}
+
+.submit-container {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.jp-ToolbarButton {
+  padding: 0 8px;
+}
+
+.jp-ToolbarButtonComponent {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.jp-ToolbarButtonComponent:hover {
+  background-color: var(--jp-layout-color2);
+}
+
+/* Select and Input hover states */
+select:hover, input:hover, textarea:hover {
+  border-color: var(--jp-brand-color2);
+}
+
+/* Button focus states */
+.btn:focus {
+  outline: 2px solid var(--jp-brand-color2);
+  outline-offset: 2px;
+}
+
+/* Table hover effects */
+.param-table tbody tr:hover {
+  background-color: var(--jp-layout-color2);
+}
+
+/* Group hover effect */
+.group:hover {
+  border-color: var(--jp-brand-color2);
+}
+
+/* Disabled state styles */
+select:disabled, input:disabled, textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error state for inputs */
+.input-error {
+  border-color: var(--jp-error-color1);
+}
+
+.error-message {
+  color: var(--jp-error-color1);
+  font-size: var(--jp-ui-font-size0);
+  margin-top: 4px;
+}
+
+/* Success state for inputs */
+.input-success {
+  border-color: var(--jp-success-color1);
+}
+
+/* Required field indicator */
+.required::after {
+  content: "*";
+  color: var(--jp-error-color1);
+  margin-left: 4px;
+}
+
+/* Loading state */
+.loading {
+  position: relative;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--jp-brand-color1);
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

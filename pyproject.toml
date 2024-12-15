@@ -1,0 +1,46 @@
+[build-system]
+requires = [
+    "hatchling>=1.5.0",
+    "jupyterlab>=4.0.0,<5",
+    "hatch-nodejs-version"
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "scheduler-jupyter-extension"
+version = "0.1.0"
+description = "A JupyterLab extension."
+authors = [{name = "beomju"}]
+license = {text = "BSD-3-Clause"}
+requires-python = ">=3.8"
+keywords = ["jupyter", "jupyterlab", "jupyterlab-extension"]
+dependencies = [
+    "jupyter_server>=2.0.1,<3"
+]
+
+[project.urls]
+Homepage = "https://github.com/username/scheduler-jupyter-extension"
+
+[tool.hatch.build.targets.wheel.shared-data]
+"scheduler_jupyter_extension/labextension" = "share/jupyter/labextensions/scheduler-jupyter-extension"
+"install.json" = "share/jupyter/labextensions/scheduler-jupyter-extension/install.json"
+
+[tool.hatch.build.targets.wheel]
+artifacts = [
+    "scheduler_jupyter_extension/labextension",
+]
+
+[tool.hatch.build.hooks.jupyter-builder]
+dependencies = ["hatch-jupyter-builder>=0.5"]
+build-function = "hatch_jupyter_builder.npm_builder"
+ensured-targets = [
+    "scheduler_jupyter_extension/labextension/package.json",
+]
+skip-if-exists = ["scheduler_jupyter_extension/labextension/static/style.js"]
+
+[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
+build_cmd = "build:prod"
+npm = ["jlpm"]
+
+[tool.jupyter-releaser.options]
+version_cmd = "hatch version"
