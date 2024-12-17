@@ -31,7 +31,8 @@ export const schedulerTemplate = `
       <div class="group-content">
         <div class="form-row">
           <label class="form-label required">실행 파일</label>
-          <div class="current-path">현재 열린 파일: 파일이 선택되지 않았습니다</div>
+          <button class="jp-Button jp-mod-styled" id="fileSelectBtn">파일 선택</button>
+          <div class="current-path">파일이 선택되지 않았습니다</div>
         </div>
 
         <div class="form-row">
