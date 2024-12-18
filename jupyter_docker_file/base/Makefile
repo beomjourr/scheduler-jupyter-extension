@@ -12,14 +12,14 @@
 #     - docker-build-push-multi-arch-dep: build AND push the docker image (and any base images)
 #
 
-GIT_COMMIT     := $(shell git rev-parse HEAD)
-GIT_TREE_STATE := $(shell test -n "`git status --porcelain`" && echo "-dirty" || echo "")
+#GIT_COMMIT     := $(shell git rev-parse HEAD)
+#GIT_TREE_STATE := $(shell test -n "`git status --porcelain`" && echo "-dirty" || echo "")
 
-REGISTRY ?= docker.io/kubeflownotebookswg
+REGISTRY ?= docker.io/xiilab
 #TAG      ?= sha-$(GIT_COMMIT)$(GIT_TREE_STATE)
-TAG      ?= 0.0.9
+TAG      ?= base
 
-IMAGE_NAME := base
+IMAGE_NAME := sd-jupyter-extension
 
 BASE_IMAGE         := ubuntu:22.04
 BASE_IMAGE_FOLDERS :=

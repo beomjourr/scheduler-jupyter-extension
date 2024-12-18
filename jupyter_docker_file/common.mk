@@ -45,7 +45,7 @@ docker-build:
 	@echo "Building '$(IMAGE_NAME)' image..."
 	@echo "------------------------------------------------------------------------------"
 	@echo ""
-	docker build --build-arg BASE_IMG=$(BASE_IMAGE) --progress=plain $(TAG_ARGS) -f Dockerfile .
+	docker build --network=host --build-arg BASE_IMG=$(BASE_IMAGE) --progress=plain $(TAG_ARGS) -f Dockerfile .
 
 # build base images as well
 .PHONY: docker-build-dep
