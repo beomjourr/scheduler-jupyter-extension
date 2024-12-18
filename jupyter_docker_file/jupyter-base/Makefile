@@ -13,37 +13,19 @@
 #
 
 # Docker registry and image settings
-registry ?= docker.io/kubeflownotebookswg
-tag      ?= 0.0.9
-image_name := base
+REGISTRY ?= docker.io/xiilab
+TAG      ?= jupyter-base
+IMAGE_NAME := sd-jupyter-extension
 
 # Docker base image
-base_image := ubuntu:22.04
+BASE_IMAGE := xiilab/sd-jupyter-extension:base
 
 # Cache settings for Docker build
-cache_image ?= ghcr.io/kubeflow/kubeflow/notebook-servers/build-cache
-cache_tag   ?= $(image_name)
+CACHE_IMAGE ?= ghcr.io/kubeflow/kubeflow/notebook-servers/build-cache
+CACHE_TAG   ?= $(image_name)
 
 # Platform settings
-arch ?= linux/amd64
+ARCH ?= linux/amd64
 
-# Targets
-.PHONY: docker-build docker-push docker-build-multi-arch
-
-docker-build:
-	@echo "Building Docker image $(registry)/$(image_name):$(tag)"
-	docker build \
-		--build-arg BASE_IMG=$(base_image) \
-		--tag $(registry)/$(image_name):$(tag) .
-
-docker-push:
-	@echo "Pushing Docker image $(registry)/$(image_name):$(tag)"
-	docker push $(registry)/$(image_name):$(tag)
-
-docker-build-multi-arch:
-	@echo "Building multi-architecture Docker image $(registry)/$(image_name):$(tag)"
-	docker buildx build \
-		--platform $(arch) \
-		--build-arg BASE_IMAGE=$(base_image) \
-		--tag $(registry)/$(image_name):$(tag) \
-		--push .
+# include build targets from common
+include ../common.mk
