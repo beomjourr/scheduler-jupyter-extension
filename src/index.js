@@ -3,21 +3,12 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 
-import { 
-  Widget
-} from '@lumino/widgets';
+import { Widget } from '@lumino/widgets';
 
-import { 
-  ICommandPalette,
-  Dialog,
-  showDialog
-} from '@jupyterlab/apputils';
+import { ICommandPalette, Dialog, showDialog } from '@jupyterlab/apputils';
 import { IFileBrowserFactory } from '@jupyterlab/filebrowser';
 import { DocumentWidget } from '@jupyterlab/docregistry';
-import { 
-  LabIcon,
-  SidePanel
-} from '@jupyterlab/ui-components';
+import { LabIcon, SidePanel } from '@jupyterlab/ui-components';
 
 import { schedulerTemplate } from './templates/scheduler-create';
 import '../style/index.css';
@@ -27,7 +18,7 @@ const API_CONFIG = {
   baseURL: 'http://localhost:3004',
   endpoints: {
     taskGroups: '/task-groups',
-    resourceData: '/resource-data', 
+    resourceData: '/resource-data',
     createTask: '/tasks'
   }
 };
@@ -48,7 +39,9 @@ class SchedulerAPI {
 
   async fetchTaskGroups() {
     try {
-      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.taskGroups}`);
+      const response = await fetch(
+        `${API_CONFIG.baseURL}${API_CONFIG.endpoints.taskGroups}`
+      );
       return await response.json();
     } catch (error) {
       console.error('Failed to fetch task groups:', error);
@@ -58,7 +51,9 @@ class SchedulerAPI {
 
   async fetchResourceData() {
     try {
-      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.resourceData}`);
+      const response = await fetch(
+        `${API_CONFIG.baseURL}${API_CONFIG.endpoints.resourceData}`
+      );
       this.resourceData = await response.json();
       return this.resourceData;
     } catch (error) {
@@ -68,8 +63,8 @@ class SchedulerAPI {
           predefined: { id: 'default', name: '기본 환경' },
           custom: {
             types: [],
-            details: {},
-          },
+            details: {}
+          }
         },
         computeResources: {
           types: [
@@ -86,13 +81,16 @@ class SchedulerAPI {
   }
 
   async createTask(taskData) {
-    const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.createTask}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(taskData)
-    });
+    const response = await fetch(
+      `${API_CONFIG.baseURL}${API_CONFIG.endpoints.createTask}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(taskData)
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -143,7 +141,7 @@ class ContentWidget extends Widget {
     this.commandInput = null;
     this.currentPath = '파일이 선택되지 않았습니다';
     this.parameters = new Map();
-    
+
     this.addClass('jp-scheduler-content');
     this.node.innerHTML = schedulerTemplate;
     this.initializeContent();
@@ -169,35 +167,38 @@ class ContentWidget extends Widget {
 
   initializeEventHandlers() {
     this.commandInput = this.node.querySelector('#command');
-    
+
     const fileSelectBtn = this.node.querySelector('#fileSelectBtn');
     fileSelectBtn?.addEventListener('click', () => {
       this.app.commands.execute('filebrowser:activate');
     });
 
-    this.node.querySelectorAll('.group-header[data-action="toggle"]').forEach(header => {
-      header.addEventListener('click', () => {
-        header.classList.toggle('collapsed');
-        header.nextElementSibling?.classList.toggle('collapsed');
+    this.node
+      .querySelectorAll('.group-header[data-action="toggle"]')
+      .forEach(header => {
+        header.addEventListener('click', () => {
+          header.classList.toggle('collapsed');
+          header.nextElementSibling?.classList.toggle('collapsed');
+        });
       });
-    });
 
     this.node.querySelectorAll('input[name="envSet"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
+      radio.addEventListener('change', e => {
         const envSelectors = this.node.querySelector('#envSelectors');
         if (envSelectors) {
-          envSelectors.style.display = e.target.value === 'custom' ? 'block' : 'none';
+          envSelectors.style.display =
+            e.target.value === 'custom' ? 'block' : 'none';
         }
       });
     });
 
     const envTypeSelect = this.node.querySelector('#envType');
-    envTypeSelect?.addEventListener('change', (e) => {
+    envTypeSelect?.addEventListener('change', e => {
       this.updateEnvDetailOptions(e.target.value);
     });
 
     const resourceTypeSelect = this.node.querySelector('#resourceType');
-    resourceTypeSelect?.addEventListener('change', (e) => {
+    resourceTypeSelect?.addEventListener('change', e => {
       this.updateResourceDetailOptions(e.target.value);
     });
 
@@ -215,8 +216,8 @@ class ContentWidget extends Widget {
 
     const updateCommand = () => {
       if (this.commandInput && !this.commandInput.disabled) {
-        const params = Array.from(this.parameters.entries()).map(([key, value]) => 
-          `--${key}=${value}`
+        const params = Array.from(this.parameters.entries()).map(
+          ([key, value]) => `--${key}=${value}`
         );
         this.commandInput.value = params.join(' ');
       }
@@ -322,12 +323,15 @@ class ContentWidget extends Widget {
       envDetail: this.node.querySelector('#envDetail').value,
       resourceType: this.node.querySelector('#resourceType').value,
       resourceDetail: this.node.querySelector('#resourceDetail').value,
-      parameters: Array.from(this.parameters.entries()).map(([key, value]) => ({ key, value })),
+      parameters: Array.from(this.parameters.entries()).map(([key, value]) => ({
+        key,
+        value
+      })),
       command: this.node.querySelector('#command').value
     };
 
     const validationError = this.api.validateForm(formData);
-    
+
     if (validationError) {
       await showDialog({
         title: '입력 오류',
@@ -379,11 +383,13 @@ class ContentWidget extends Widget {
     }
     this.parameters.clear();
 
-    const predefinedRadio = this.node.querySelector('input[name="envSet"][value="predefined"]');
+    const predefinedRadio = this.node.querySelector(
+      'input[name="envSet"][value="predefined"]'
+    );
     if (predefinedRadio) {
       predefinedRadio.checked = true;
     }
-    
+
     const envSelectors = this.node.querySelector('#envSelectors');
     if (envSelectors) {
       envSelectors.style.display = 'none';
@@ -400,7 +406,9 @@ class ContentWidget extends Widget {
     if (this.commandInput) {
       const isNotebook = path.endsWith('.ipynb');
       this.commandInput.disabled = isNotebook;
-      this.commandInput.value = isNotebook ? 'Jupyter Notebook 파일은 실행 명령어를 지정할 수 없습니다.' : '';
+      this.commandInput.value = isNotebook
+        ? 'Jupyter Notebook 파일은 실행 명령어를 지정할 수 없습니다.'
+        : '';
     }
   }
 
@@ -414,7 +422,7 @@ class SchedulerWidget extends Widget {
     super();
     this.addClass('jp-scheduler-widget');
     this.id = 'scheduler-widget';
-    
+
     this.content = new ContentWidget(app);
     this.node.appendChild(this.content.node);
   }
@@ -430,7 +438,7 @@ class SchedulerStatusWidget extends Widget {
     this.addClass('jp-scheduler-new-widget');
     this.id = 'scheduler-new-widget';
     this.title.label = '스케줄러 이력';
-    
+
     // 새로운 위젯의 내용
     this.node.innerHTML = `
       <div class="jp-scheduler-new-content">
@@ -468,7 +476,9 @@ const plugin = {
   autoStart: true,
   requires: [ICommandPalette, IFileBrowserFactory],
   activate: (app, palette, fileBrowser) => {
-    console.log('JupyterLab extension scheduler-jupyter-extension is activated!');
+    console.log(
+      'JupyterLab extension scheduler-jupyter-extension is activated!'
+    );
 
     const panel = new SchedulerPanel(app);
 
@@ -496,26 +506,26 @@ const plugin = {
     toolbarButton.id = 'scheduler-toolbar-button';
     toolbarButton.addClass('jp-ToolbarButton');
     toolbarButton.hide();
-    
+
     const button = document.createElement('button');
     button.className = 'jp-ToolbarButtonComponent';
     button.onclick = () => {
       app.commands.execute(command);
     };
-    
+
     const icon = document.createElement('div');
     playIcon.element({
       container: icon,
       tag: 'span',
-      elementPosition: 'center',
+      elementPosition: 'center'
     });
-    
+
     button.appendChild(icon);
     toolbarButton.node.appendChild(button);
     app.shell.add(toolbarButton, 'top', { rank: 1000 });
 
     // 현재 파일에 따른 버튼 가시성 업데이트
-    const updateButtonVisibility = (widget) => {
+    const updateButtonVisibility = widget => {
       if (widget instanceof DocumentWidget) {
         const path = widget.context.path;
         const isValidFile = path.endsWith('.py') || path.endsWith('.ipynb');
