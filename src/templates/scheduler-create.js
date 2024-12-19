@@ -71,28 +71,32 @@ export const schedulerTemplate = `
           </div>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">파라미터</label>
-          <div class="flex-row">
-            <input type="text" id="paramKey" placeholder="키" class="flex-1">
-            <input type="text" id="paramValue" placeholder="값" class="flex-1">
-            <button class="btn btn-small" id="addParamBtn">추가</button>
+        <div class="param-section">
+          <div class="form-row">
+            <label class="form-label">파라미터</label>
+            <div class="flex-row">
+              <input type="text" id="paramKey" placeholder="키" class="flex-1">
+              <input type="text" id="paramValue" placeholder="값" class="flex-1">
+              <button class="btn btn-small" id="addParamBtn">추가</button>
+            </div>
+            <table class="param-table">
+              <thead>
+                <tr>
+                  <th>키</th>
+                  <th>값</th>
+                  <th>삭제</th>
+                </tr>
+              </thead>
+              <tbody id="paramTableBody"></tbody>
+            </table>
           </div>
-          <table class="param-table">
-            <thead>
-              <tr>
-                <th>키</th>
-                <th>값</th>
-                <th>삭제</th>
-              </tr>
-            </thead>
-            <tbody id="paramTableBody"></tbody>
-          </table>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">실행 명령어</label>
-          <input type="text" id="command">
+        <div class="command-section">
+          <div class="form-row">
+            <label class="form-label">실행 명령어</label>
+            <input type="text" id="command">
+          </div>
         </div>
       </div>
     </div>

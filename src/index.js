@@ -141,6 +141,7 @@ class ContentWidget extends Widget {
     this.commandInput = null;
     this.currentPath = '파일이 선택되지 않았습니다';
     this.parameters = new Map();
+    this.savedState = null; // 상태 저장을 위한 변수 추가
 
     this.addClass('jp-scheduler-content');
     this.node.innerHTML = schedulerTemplate;
@@ -270,12 +271,6 @@ class ContentWidget extends Widget {
         }
 
         this.commandInput.value = newCommand;
-
-        // 디버깅용 로그
-        console.log('Prefix:', prefix);
-        console.log('Parameters:', paramCommands);
-        console.log('Suffix:', suffix);
-        console.log('Final command:', newCommand);
       }
     };
 
@@ -467,16 +462,83 @@ class ContentWidget extends Widget {
   updateFilePath(path) {
     this.currentPath = path;
     const pathDisplay = this.node.querySelector('.current-path');
+    const paramSection = this.node.querySelector('.param-section');
+    const commandSection = this.node.querySelector('.command-section');
+
     if (pathDisplay) {
       pathDisplay.textContent = `현재 열린 파일: ${this.currentPath}`;
     }
 
-    if (this.commandInput) {
-      const isNotebook = path.endsWith('.ipynb');
-      this.commandInput.disabled = isNotebook;
-      this.commandInput.value = isNotebook
-        ? 'Jupyter Notebook 파일은 실행 명령어를 지정할 수 없습니다.'
-        : '';
+    const isNotebook = path.endsWith('.ipynb');
+
+    if (isNotebook) {
+      // 노트북 파일일 때: 현재 상태 저장 후 숨기기
+      if (!this.savedState) {
+        this.savedState = {
+          parameters: new Map(this.parameters),
+          command: this.commandInput?.value || ''
+        };
+      }
+
+      // 파라미터와 명령어 섹션 숨기기
+      if (paramSection) paramSection.style.display = 'none';
+      if (commandSection) commandSection.style.display = 'none';
+
+      // 값 초기화
+      this.parameters.clear();
+      if (this.commandInput) {
+        this.commandInput.value = '';
+      }
+      this.updateParamTable();
+    } else {
+      // 일반 파일일 때: 저장된 상태 복원
+      if (paramSection) paramSection.style.display = 'block';
+      if (commandSection) commandSection.style.display = 'block';
+
+      if (this.savedState) {
+        // 저장된 상태 복원
+        this.parameters = new Map(this.savedState.parameters);
+        if (this.commandInput) {
+          this.commandInput.value = this.savedState.command;
+        }
+        this.updateParamTable();
+        this.savedState = null; // 복원 후 저장된 상태 초기화
+      }
+    }
+  }
+
+  updateParamTable() {
+    const paramTableBody = this.node.querySelector('#paramTableBody');
+    if (paramTableBody) {
+      paramTableBody.innerHTML = '';
+
+      this.parameters.forEach((value, key) => {
+        const row = paramTableBody.insertRow();
+        row.innerHTML = `
+          <td>${key}</td>
+          <td>
+            <input type="text" class="param-value-input" value="${value}" />
+          </td>
+          <td class="param-row-action">
+            <button class="btn btn-small btn-danger">삭제</button>
+          </td>
+        `;
+
+        // 값 수정 이벤트 처리
+        const valueInput = row.querySelector('.param-value-input');
+        valueInput?.addEventListener('change', e => {
+          this.parameters.set(key, e.target.value.trim());
+          this.updateCommand();
+        });
+
+        // 삭제 버튼 이벤트 처리
+        const deleteBtn = row.querySelector('.btn-danger');
+        deleteBtn?.addEventListener('click', () => {
+          this.parameters.delete(key);
+          row.remove();
+          this.updateCommand();
+        });
+      });
     }
   }
 
