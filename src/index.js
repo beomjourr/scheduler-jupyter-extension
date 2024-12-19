@@ -216,16 +216,74 @@ class ContentWidget extends Widget {
 
     const updateCommand = () => {
       if (this.commandInput && !this.commandInput.disabled) {
-        const params = Array.from(this.parameters.entries()).map(
-          ([key, value]) => `--${key}=${value}`
-        );
-        this.commandInput.value = params.join(' ');
+        const currentCommand = this.commandInput.value;
+
+        // 파라미터 시작과 끝 위치 찾기
+        const segments = [];
+        let paramStart = -1;
+        let paramEnd = -1;
+        let inParam = false;
+
+        // 현재 명령어를 순회하면서 파라미터 영역 찾기
+        for (let i = 0; i < currentCommand.length; i++) {
+          if (currentCommand.startsWith('--', i)) {
+            if (!inParam) {
+              if (paramStart === -1) {
+                paramStart = i;
+              }
+              inParam = true;
+            }
+          } else if (inParam && currentCommand[i] === ' ') {
+            inParam = false;
+            paramEnd = i;
+          }
+        }
+        if (inParam) {
+          paramEnd = currentCommand.length;
+        }
+
+        // 명령어를 세 부분으로 나누기: 앞부분, 파라미터 부분, 뒷부분
+        let prefix = '';
+        let suffix = '';
+
+        if (paramStart !== -1) {
+          prefix = currentCommand.substring(0, paramStart).trim();
+          suffix = currentCommand.substring(paramEnd).trim();
+        } else {
+          prefix = currentCommand.trim();
+        }
+
+        // 현재 파라미터들로 새로운 파라미터 문자열 생성
+        const paramCommands = Array.from(this.parameters.entries())
+          .map(([key, value]) => `--${key}=${value}`)
+          .join(' ');
+
+        // 세 부분 다시 조합
+        let newCommand = prefix;
+        if (paramCommands) {
+          newCommand = newCommand
+            ? `${newCommand} ${paramCommands}`
+            : paramCommands;
+        }
+        if (suffix) {
+          newCommand = `${newCommand} ${suffix}`;
+        }
+
+        this.commandInput.value = newCommand;
+
+        // 디버깅용 로그
+        console.log('Prefix:', prefix);
+        console.log('Parameters:', paramCommands);
+        console.log('Suffix:', suffix);
+        console.log('Final command:', newCommand);
       }
     };
 
     addParamBtn?.addEventListener('click', async () => {
       if (paramKey.value) {
-        if (this.parameters.has(paramKey.value)) {
+        const key = paramKey.value.trim();
+
+        if (this.parameters.has(key)) {
           await showDialog({
             title: '파라미터 오류',
             body: '이미 존재하는 파라미터 키입니다.',
@@ -234,20 +292,30 @@ class ContentWidget extends Widget {
           return;
         }
 
-        this.parameters.set(paramKey.value, paramValue.value);
+        this.parameters.set(key, paramValue.value.trim());
+
         if (paramTableBody) {
           const row = paramTableBody.insertRow();
           row.innerHTML = `
-            <td>${paramKey.value}</td>
-            <td>${paramValue.value}</td>
+            <td>${key}</td>
+            <td>
+              <input type="text" class="param-value-input" value="${paramValue.value.trim()}" />
+            </td>
             <td class="param-row-action">
               <button class="btn btn-small btn-danger">삭제</button>
             </td>
           `;
 
+          // 값 수정 이벤트 처리
+          const valueInput = row.querySelector('.param-value-input');
+          valueInput?.addEventListener('change', e => {
+            this.parameters.set(key, e.target.value.trim());
+            updateCommand();
+          });
+
           const deleteBtn = row.querySelector('.btn-danger');
           deleteBtn?.addEventListener('click', () => {
-            this.parameters.delete(paramKey.value);
+            this.parameters.delete(key);
             row.remove();
             updateCommand();
           });
@@ -442,7 +510,7 @@ class SchedulerStatusWidget extends Widget {
     // 새로운 위젯의 내용
     this.node.innerHTML = `
       <div class="jp-scheduler-new-content">
-        <h2>스케줄러 이력 내용</h2>
+      <h2>스케줄러 이력 내용</h2>
       </div>
     `;
   }
