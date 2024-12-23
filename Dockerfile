@@ -1,12 +1,46 @@
-# Base 이미지 사용
-#FROM xiilab/sd-jupyter-extension:jupyter-base
-FROM jupyter/datascience-notebook:python-3.11.6
+FROM ubuntu:22.04
 
-# 현재 디렉토리의 모든 파일을 컨테이너로 복사
-COPY . /tmp/jupyter-scheduler-extension
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    NODE_VERSION=20 \
+    JUPYTERLAB_VERSION=4
 
-# Jupyter Lab Extension 설치 및 빌드
-RUN jupyter labextension install /tmp/jupyter-scheduler-extension && \
-    jupyter lab build
+# Update and install necessary packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gnupg \
+    build-essential \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-#RUN rm -rf /tmp/jupyter-scheduler-extension 
+# Install Node.js and Yarn in one step to minimize layers
+RUN curl -fsSL https://deb.nodesource.com/setup_$NODE_VERSION.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g yarn \
+    && node -v \
+    && yarn -v
+
+# Install JupyterLab
+RUN pip3 install --no-cache-dir jupyterlab==$JUPYTERLAB_VERSION
+
+# Copy project files to container
+WORKDIR /tmp/my_extension
+COPY . .
+
+# Install dependencies and build the extension
+RUN jlpm install \
+    && jlpm build \
+    && jupyter labextension install . \
+    && jupyter lab build
+
+# Set up a working directory
+WORKDIR /workspace
+
+# Expose the JupyterLab default port
+EXPOSE 8888
+
+# Start JupyterLab
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--allow-root"]
+
