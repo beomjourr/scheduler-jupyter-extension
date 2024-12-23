@@ -12,19 +12,24 @@
 #     - docker-build-push-multi-arch-dep: build AND push the docker image (and any base images)
 #
 
-# Docker registry and image settings
-REGISTRY ?= docker.io/xiilab
-TAG      ?= jupyter-base
-IMAGE_NAME := sd-jupyter-extension
+GIT_COMMIT     := $(shell git rev-parse HEAD)
+GIT_TREE_STATE := $(shell test -n "`git status --porcelain`" && echo "-dirty" || echo "")
 
-# Docker base image
-BASE_IMAGE := xiilab/sd-jupyter-extension:base
+REGISTRY ?= docker.io/kubeflownotebookswg
+#TAG      ?= sha-$(GIT_COMMIT)$(GIT_TREE_STATE)
+TAG      ?= 0.0.9
 
-# Cache settings for Docker build
+IMAGE_NAME := jupyter-base
+
+BASE_IMAGE         := $(REGISTRY)/base:$(TAG)
+BASE_IMAGE_FOLDERS := base
+
+# we use a separate registry-type cache to keep the main registry clean
+# https://docs.docker.com/build/cache/backends/
 CACHE_IMAGE ?= ghcr.io/kubeflow/kubeflow/notebook-servers/build-cache
-CACHE_TAG   ?= $(image_name)
+CACHE_TAG   ?= $(IMAGE_NAME)
 
-# Platform settings
+# https://docs.docker.com/engine/reference/commandline/buildx_build/#platform
 ARCH ?= linux/amd64
 
 # include build targets from common
