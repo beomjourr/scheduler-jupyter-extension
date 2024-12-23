@@ -273,6 +273,12 @@ class ContentWidget extends Widget {
     const imageData = await this.api.fetchImageData();
     const computeData = await this.api.fetchComputeResourceData();
     this.updateResourceOptions(imageData, computeData);
+
+    // 초기에 envSelectors 숨기기
+    const envSelectors = this.node.querySelector('#envSelectors');
+    if (envSelectors) {
+      envSelectors.style.display = 'none';
+    }
   }
 
   initializeEventHandlers() {
