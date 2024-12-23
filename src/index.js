@@ -11,6 +11,7 @@ import { DocumentWidget } from '@jupyterlab/docregistry';
 import { LabIcon, SidePanel } from '@jupyterlab/ui-components';
 
 import { schedulerTemplate } from './templates/scheduler-create';
+import { schedulerStatusTemplate } from './templates/scheduler-status';
 import '../style/index.css';
 
 // API 설정
@@ -569,15 +570,167 @@ class SchedulerStatusWidget extends Widget {
     this.id = 'scheduler-new-widget';
     this.title.label = '스케줄러 이력';
 
-    // 새로운 위젯의 내용
-    this.node.innerHTML = `
-      <div class="jp-scheduler-new-content">
-      <h2>스케줄러 이력 내용</h2>
-      </div>
+    // HTML 템플릿 적용
+    this.node.innerHTML = schedulerStatusTemplate;
+
+    // 초기화 및 이벤트 핸들러 설정
+    this.initializeContent();
+    this.startPeriodicRefresh();
+  }
+
+  initializeContent() {
+    // 테이블 초기화 및 기본 설정
+    const taskList = this.node.querySelector('#taskList');
+    if (taskList) {
+      this.updateTaskList([]); // 빈 목록으로 초기화
+    }
+  }
+
+  updateTaskList(tasks) {
+    const taskList = this.node.querySelector('#taskList');
+    if (!taskList) return;
+
+    taskList.innerHTML = '';
+
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML =
+        '<td colspan="2" style="text-align: center;">No tasks found</td>';
+      taskList.appendChild(emptyRow);
+      return;
+    }
+
+    // 최근 순으로 정렬하고 20개만 표시
+    const recentTasks = [...tasks]
+      .filter(task => task && task.createdAt) // null 체크
+      .sort((a, b) => {
+        try {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        } catch (e) {
+          console.error('Date parsing error:', e);
+          return 0;
+        }
+      })
+      .slice(0, 20);
+
+    recentTasks.forEach(task => {
+      try {
+        const row = this.createTaskRow(task);
+        taskList.appendChild(row);
+      } catch (e) {
+        console.error('Error creating task row:', e, task);
+      }
+    });
+  }
+
+  createTaskRow(task) {
+    const tr = document.createElement('tr');
+    tr.className = 'task-row';
+    tr.innerHTML = `
+      <td>
+        <div class="status-cell">
+          ${this.getStatusIcon(task.status)}
+          <span class="status ${task.status}">${task.status}</span>
+        </div>
+      </td>
+      <td class="name-cell">${task.name}</td>
     `;
+
+    tr.addEventListener('click', () => this.openTaskDetail(task));
+    return tr;
+  }
+
+  getStatusIcon(status) {
+    switch (status) {
+      case 'running':
+        return `<svg class="icon spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10" stroke-width="4" stroke-dasharray="30 30" />
+          </svg>`;
+      case 'error':
+      case 'failed':
+        return `<span style="font-size: 16px;">🔴</span>`;
+      case 'success':
+        return `<span style="font-size: 16px;">🟢</span>`;
+      default:
+        return '⚪';
+    }
+  }
+
+  openTaskDetail(task) {
+    // task detail 페이지 열기
+    const params = new URLSearchParams({
+      executableId: task.executableId,
+      assetId: task.executable.assetId
+    }).toString();
+
+    window.open(
+      `http://localhost:3004/#/apt/namu/scheduler/job/${task.id}?${params}`
+    );
+  }
+
+  async fetchTasks() {
+    try {
+      const userId = this.getUserId();
+      if (!userId) {
+        console.error('User ID not found');
+        return;
+      }
+
+      // 현재 날짜와 1달 전 날짜 계산
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 1);
+
+      // yyyy.MM.dd 형식으로 날짜 포맷팅
+      const formatDate = date => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}.${month}.${day}`;
+      };
+
+      const startDateStr = formatDate(startDate);
+      const endDateStr = formatDate(endDate);
+
+      const endpoint =
+        `${API_CONFIG.baseURL}${API_CONFIG.endpoints.tasks}`.replace(
+          '${userId}',
+          userId
+        ) + `?startDate=${startDateStr}&endDate=${endDateStr}`;
+
+      const response = await fetch(endpoint);
+      const responseData = await response.json();
+
+      // 응답 데이터 구조 확인 및 처리
+      const tasks = responseData?.data || [];
+      if (Array.isArray(tasks)) {
+        this.updateTaskList(tasks);
+      } else {
+        console.error('Unexpected tasks data structure:', tasks);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tasks:', error);
+    }
+  }
+
+  getUserId() {
+    // process.env에서 userId 확인
+    if (process.env.userId) {
+      return process.env.userId;
+    }
+    return null;
+  }
+
+  startPeriodicRefresh() {
+    // 초기 데이터 로드
+    this.fetchTasks();
+
+    // 5초마다 갱신
+    setInterval(() => {
+      this.fetchTasks();
+    }, 5000);
   }
 }
-
 class SchedulerPanel extends SidePanel {
   constructor(app) {
     super();
