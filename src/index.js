@@ -18,11 +18,16 @@ import '../style/index.css';
 const API_CONFIG = {
   baseURL: 'http://localhost:3004',
   endpoints: {
-    taskGroups: '/task-groups',
-    resourceData: '/resource-data',
-    createTask: '/tasks'
+    taskGroups: '/extension/scheduler/experiments/users/${userId}',
+    images: '/extension/images/users/${userId}',
+    computeResources: '/compute-resources',
+    createTask: '/tasks',
+    tasks: '/extension/scheduler/tasks/${userId}',
+    notebookDetail: '/extension/notebooks/${notebookId}/detail'
   }
 };
+
+const SCHEDULER_DETAIL_PAGE_URL = 'localhost3004/#/apt/namu/scheduler/job';
 
 // 아이콘 정의
 const playIconStr = `
@@ -35,63 +40,78 @@ const playIcon = new LabIcon({ name: 'scheduler:play', svgstr: playIconStr });
 // API 클래스 구현
 class SchedulerAPI {
   constructor() {
-    this.resourceData = null;
+    this.imageData = null;
+    this.computeResourceData = null;
   }
 
   async fetchTaskGroups() {
     try {
-      const response = await fetch(
-        `${API_CONFIG.baseURL}${API_CONFIG.endpoints.taskGroups}`
-      );
-      return await response.json();
+      const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.taskGroups);
+      const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
+      const data = await response.json();
+      return data.data.data;
     } catch (error) {
       console.error('Failed to fetch task groups:', error);
-      return [{ id: '', name: '선택하세요' }];
+      return [];
     }
   }
 
-  async fetchResourceData() {
+  async fetchImageData() {
     try {
-      const response = await fetch(
-        `${API_CONFIG.baseURL}${API_CONFIG.endpoints.resourceData}`
-      );
-      this.resourceData = await response.json();
-      return this.resourceData;
+      const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.images);
+      const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
+      const data = await response.json();
+      this.imageData = data.data;
+      return this.imageData;
     } catch (error) {
-      console.error('Failed to fetch resource data:', error);
+      console.error('Failed to fetch image data:', error);
       return {
-        environments: {
-          predefined: { id: 'default', name: '기본 환경' },
-          custom: {
-            types: [],
-            details: {}
-          }
-        },
-        computeResources: {
-          types: [
-            { id: 'cpu', name: 'CPU' },
-            { id: 'gpu', name: 'GPU/CPU' }
-          ],
-          details: {
-            cpu: [],
-            gpu: []
-          }
-        }
+        images: []
       };
     }
   }
 
+  async fetchComputeResourceData() {
+    try {
+      const endpoint = this.getUrlWithUserId(
+        API_CONFIG.endpoints.computeResources
+      );
+      const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
+      this.computeResourceData = await response.json();
+      return this.computeResourceData;
+    } catch (error) {
+      console.error('Failed to fetch compute resource data:', error);
+      return {
+        types: [],
+        details: {}
+      };
+    }
+  }
+
+  async fetchNotebookDetail(notebookId) {
+    try {
+      const endpoint = API_CONFIG.endpoints.notebookDetail.replace(
+        '${notebookId}',
+        notebookId
+      );
+      const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Failed to fetch notebook detail:', error);
+      return null;
+    }
+  }
+
   async createTask(taskData) {
-    const response = await fetch(
-      `${API_CONFIG.baseURL}${API_CONFIG.endpoints.createTask}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(taskData)
-      }
-    );
+    const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.createTask);
+    const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(taskData)
+    });
 
     if (!response.ok) {
       const error = await response.json();
@@ -99,6 +119,19 @@ class SchedulerAPI {
     }
 
     return response.json();
+  }
+
+  async fetchTasks(startDate, endDate) {
+    try {
+      const endpoint = this.getUrlWithUserId(
+        `${API_CONFIG.baseURL}${API_CONFIG.endpoints.tasks}?startDate=${startDate}&endDate=${endDate}`
+      );
+      const response = await fetch(endpoint);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch tasks:', error);
+      return [];
+    }
   }
 
   validateForm(formData) {
@@ -125,12 +158,29 @@ class SchedulerAPI {
     return null;
   }
 
+  getUserId() {
+    if (process.env.userId) {
+      return process.env.userId;
+    }
+    return null;
+  }
+
+  getUrlWithUserId(endpoint) {
+    const userId = this.getUserId();
+    if (!userId) {
+      return endpoint;
+    }
+    return endpoint.replace('${userId}', userId);
+  }
+
   getEnvironmentDetails(typeId) {
-    return this.resourceData?.environments?.custom?.details[typeId] || [];
+    return (
+      this.imageData?.images?.filter(img => img.processor === typeId) || []
+    );
   }
 
   getResourceDetails(typeId) {
-    return this.resourceData?.computeResources?.details[typeId] || [];
+    return this.computeResourceData?.details?.[typeId] || [];
   }
 }
 
@@ -142,12 +192,69 @@ class ContentWidget extends Widget {
     this.commandInput = null;
     this.currentPath = '파일이 선택되지 않았습니다';
     this.parameters = new Map();
-    this.savedState = null; // 상태 저장을 위한 변수 추가
+    this.savedState = null;
+    this.notebookId = null;
 
     this.addClass('jp-scheduler-content');
     this.node.innerHTML = schedulerTemplate;
     this.initializeContent();
     this.initializeEventHandlers();
+  }
+
+  extractNotebookId(path) {
+    try {
+      const parts = path.split('/');
+      if (parts.length >= 4) {
+        const notebookPart = parts[3];
+        if (notebookPart.startsWith('notebook-')) {
+          return notebookPart.replace('notebook-', '');
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error extracting notebook ID:', error);
+      return null;
+    }
+  }
+
+  async fetchNotebookDetail(notebookId) {
+    if (!notebookId) return null;
+
+    try {
+      const notebookDetail = await this.api.fetchNotebookDetail(notebookId);
+      return notebookDetail;
+    } catch (error) {
+      console.error('Failed to fetch notebook detail:', error);
+      return null;
+    }
+  }
+
+  async updateNotebookData(notebookId) {
+    const notebookDetail = await this.fetchNotebookDetail(notebookId);
+    if (notebookDetail?.notebook) {
+      const { notebook } = notebookDetail;
+
+      const taskNameInput = this.node.querySelector('#taskName');
+      if (taskNameInput) {
+        taskNameInput.value = `${notebook.notebookName}-스케줄러`;
+      }
+
+      if (notebook.image) {
+        const predefinedRadio = this.node.querySelector(
+          'input[name="envSet"][value="predefined"]'
+        );
+        if (predefinedRadio) {
+          predefinedRadio.checked = true;
+          const envTypeSelect = this.node.querySelector('#envType');
+          const envDetailSelect = this.node.querySelector('#envDetail');
+
+          if (envTypeSelect && envDetailSelect) {
+            envTypeSelect.value = notebook.image.processor;
+            envDetailSelect.value = notebook.image.id;
+          }
+        }
+      }
+    }
   }
 
   async initializeContent() {
@@ -163,8 +270,9 @@ class ContentWidget extends Widget {
       });
     }
 
-    const resourceData = await this.api.fetchResourceData();
-    this.updateResourceOptions(resourceData);
+    const imageData = await this.api.fetchImageData();
+    const computeData = await this.api.fetchComputeResourceData();
+    this.updateResourceOptions(imageData, computeData);
   }
 
   initializeEventHandlers() {
@@ -219,9 +327,7 @@ class ContentWidget extends Widget {
     const updateCommand = () => {
       if (this.commandInput && !this.commandInput.disabled) {
         const currentCommand = this.commandInput.value;
-
-        // 파라미터 시작과 끝 위치 찾기
-        const segments = [];
+        let segments = [];
         let paramStart = -1;
         let paramEnd = -1;
         let inParam = false;
@@ -324,11 +430,12 @@ class ContentWidget extends Widget {
     });
   }
 
-  updateResourceOptions(data) {
+  updateResourceOptions(imageData, computeData) {
+    // Update resource type options
     const resourceTypeSelect = this.node.querySelector('#resourceType');
-    if (resourceTypeSelect) {
+    if (resourceTypeSelect && computeData?.types) {
       resourceTypeSelect.innerHTML = '<option value="">자원 종류</option>';
-      data.computeResources.types.forEach(type => {
+      computeData.types.forEach(type => {
         const option = document.createElement('option');
         option.value = type.id;
         option.textContent = type.name;
@@ -337,43 +444,48 @@ class ContentWidget extends Widget {
     }
 
     const envTypeSelect = this.node.querySelector('#envType');
-    if (envTypeSelect) {
+    if (envTypeSelect && imageData?.images) {
+      const processors = [
+        ...new Set(imageData.images.map(img => img.processor))
+      ];
       envTypeSelect.innerHTML = '<option value="">환경 선택</option>';
-      data.environments.custom.types.forEach(type => {
+      processors.forEach(processor => {
         const option = document.createElement('option');
-        option.value = type.id;
-        option.textContent = type.name;
+        option.value = processor;
+        option.textContent = processor;
         envTypeSelect.appendChild(option);
       });
     }
   }
 
-  updateEnvDetailOptions(typeId) {
-    const details = this.api.getEnvironmentDetails(typeId);
+  updateEnvDetailOptions(processor) {
     const envDetailSelect = this.node.querySelector('#envDetail');
-    if (envDetailSelect) {
-      envDetailSelect.innerHTML = '<option value="">세부 내용 선택</option>';
-      details.forEach(detail => {
-        const option = document.createElement('option');
-        option.value = detail.id;
-        option.textContent = detail.name;
-        envDetailSelect.appendChild(option);
-      });
-    }
+    if (!envDetailSelect) return;
+
+    envDetailSelect.innerHTML = '<option value="">세부 내용 선택</option>';
+    const filteredImages = this.api.getEnvironmentDetails(processor);
+
+    filteredImages.forEach(image => {
+      const option = document.createElement('option');
+      option.value = image.id;
+      option.textContent = image.displayName;
+      envDetailSelect.appendChild(option);
+    });
   }
 
   updateResourceDetailOptions(typeId) {
-    const details = this.api.getResourceDetails(typeId);
     const resourceDetailSelect = this.node.querySelector('#resourceDetail');
-    if (resourceDetailSelect) {
-      resourceDetailSelect.innerHTML = '<option value="">세부 자원</option>';
-      details.forEach(detail => {
-        const option = document.createElement('option');
-        option.value = detail.id;
-        option.textContent = detail.name;
-        resourceDetailSelect.appendChild(option);
-      });
-    }
+    if (!resourceDetailSelect) return;
+
+    resourceDetailSelect.innerHTML = '<option value="">세부 자원</option>';
+    const details = this.api.getResourceDetails(typeId);
+
+    details.forEach(detail => {
+      const option = document.createElement('option');
+      option.value = detail.id;
+      option.textContent = detail.name;
+      resourceDetailSelect.appendChild(option);
+    });
   }
 
   async handleSubmit() {
@@ -460,11 +572,16 @@ class ContentWidget extends Widget {
     }
   }
 
-  updateFilePath(path) {
+  async updateFilePath(path) {
     this.currentPath = path;
     const pathDisplay = this.node.querySelector('.current-path');
     const paramSection = this.node.querySelector('.param-section');
     const commandSection = this.node.querySelector('.command-section');
+
+    const notebookId = this.extractNotebookId(path);
+    if (notebookId) {
+      await this.updateNotebookData(notebookId);
+    }
 
     if (pathDisplay) {
       pathDisplay.textContent = `현재 열린 파일: ${this.currentPath}`;
@@ -569,6 +686,7 @@ class SchedulerStatusWidget extends Widget {
     this.addClass('jp-scheduler-new-widget');
     this.id = 'scheduler-new-widget';
     this.title.label = '스케줄러 이력';
+    this.api = new SchedulerAPI();
 
     // HTML 템플릿 적용
     this.node.innerHTML = schedulerStatusTemplate;
@@ -602,7 +720,7 @@ class SchedulerStatusWidget extends Widget {
 
     // 최근 순으로 정렬하고 20개만 표시
     const recentTasks = [...tasks]
-      .filter(task => task && task.createdAt) // null 체크
+      .filter(task => task && task.createdAt)
       .sort((a, b) => {
         try {
           return new Date(b.createdAt) - new Date(a.createdAt);
@@ -663,19 +781,11 @@ class SchedulerStatusWidget extends Widget {
       assetId: task.executable.assetId
     }).toString();
 
-    window.open(
-      `http://localhost:3004/#/apt/namu/scheduler/job/${task.id}?${params}`
-    );
+    window.open(`${SCHEDULER_DETAIL_PAGE_URL}/${task.id}?${params}`);
   }
 
   async fetchTasks() {
     try {
-      const userId = this.getUserId();
-      if (!userId) {
-        console.error('User ID not found');
-        return;
-      }
-
       // 현재 날짜와 1달 전 날짜 계산
       const endDate = new Date();
       const startDate = new Date();
@@ -686,51 +796,27 @@ class SchedulerStatusWidget extends Widget {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
-        return `${year}.${month}.${day}`;
+        return `${year}${month}${day}`;
       };
 
-      const startDateStr = formatDate(startDate);
-      const endDateStr = formatDate(endDate);
+      const fromDate = formatDate(startDate);
+      const toDate = formatDate(endDate);
 
-      const endpoint =
-        `${API_CONFIG.baseURL}${API_CONFIG.endpoints.tasks}`.replace(
-          '${userId}',
-          userId
-        ) + `?startDate=${startDateStr}&endDate=${endDateStr}`;
-
-      const response = await fetch(endpoint);
-      const responseData = await response.json();
-
-      // 응답 데이터 구조 확인 및 처리
-      const tasks = responseData?.data || [];
-      if (Array.isArray(tasks)) {
-        this.updateTaskList(tasks);
-      } else {
-        console.error('Unexpected tasks data structure:', tasks);
-      }
+      const tasks = await this.api.fetchTasks(fromDate, toDate);
+      this.updateTaskList(tasks);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
     }
   }
 
-  getUserId() {
-    // process.env에서 userId 확인
-    if (process.env.userId) {
-      return process.env.userId;
-    }
-    return null;
-  }
-
   startPeriodicRefresh() {
-    // 초기 데이터 로드
     this.fetchTasks();
-
-    // 5초마다 갱신
     setInterval(() => {
       this.fetchTasks();
     }, 5000);
   }
 }
+
 class SchedulerPanel extends SidePanel {
   constructor(app) {
     super();
