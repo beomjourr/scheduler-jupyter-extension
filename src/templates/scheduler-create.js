@@ -1,7 +1,7 @@
 export const schedulerTemplate = `
   <div class="jp-scheduler-widget">
     <div class="group">
-      <div class="group-header collapsed" onclick="toggleGroup(this)">
+      <div class="group-header collapsed">
         <span class="collapse-icon">▼</span>
         <div class="group-title">작업 명세</div>
       </div>
@@ -24,16 +24,14 @@ export const schedulerTemplate = `
     </div>
 
     <div class="group">
-      <div class="group-header" onclick="toggleGroup(this)">
-        <span class="collapse-icon">▼</span>
+    <div class="group-header" data-action="toggle">
+    <span class="collapse-icon">▼</span>
         <div class="group-title">작업 구성</div>
       </div>
       <div class="group-content">
         <div class="form-row">
           <label class="form-label required">실행 파일</label>
-          <button class="btn" onclick="vscode.postMessage({type: 'openFile'})">
-            파일 경로 선택
-          </button>
+          <button class="jp-Button jp-mod-styled" id="fileSelectBtn">파일 선택</button>
           <div class="current-path">
             선택된 파일: <span id="selectedFile">없음</span>
           </div>
@@ -81,7 +79,7 @@ export const schedulerTemplate = `
           <div class="flex-row">
             <input type="text" id="paramKey" placeholder="키" class="flex-1">
             <input type="text" id="paramValue" placeholder="값" class="flex-1">
-            <button class="btn btn-small" onclick="addParameterToTable()">추가</button>
+            <button class="btn btn-small" id="addParamBtn">추가</button>
           </div>
           <table class="param-table">
             <thead>
@@ -108,7 +106,7 @@ export const schedulerTemplate = `
     </div>
 
     <div class="submit-container">
-      <button class="btn" id="submitBtn" onclick="submitForm()">생성</button>
+      <button class="btn" id="submitBtn">생성</button>
     </div>
   </div>
 `;
