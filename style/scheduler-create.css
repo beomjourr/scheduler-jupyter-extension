@@ -94,11 +94,9 @@ textarea {
 }
 
 .radio-label {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 5px;
-  white-space: nowrap;
-  margin-right: 20px;
 }
 
 .flex-row {
@@ -174,6 +172,48 @@ textarea {
   text-align: right;
 }
 
+.jp-ToolbarButton {
+  padding: 0 8px;
+}
+
+.jp-ToolbarButtonComponent {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.jp-ToolbarButtonComponent:hover {
+  background-color: var(--jp-layout-color2);
+}
+
+/* Select and Input hover states */
+select:hover,
+input:hover,
+textarea:hover {
+  border-color: var(--jp-brand-color2);
+}
+
+/* Button focus states */
+.btn:focus {
+  outline: 2px solid var(--jp-brand-color2);
+  outline-offset: 2px;
+}
+
+/* Table hover effects */
+.param-table tbody tr:hover {
+  background-color: var(--jp-layout-color2);
+}
+
+/* Group hover effect */
+.group:hover {
+  border-color: var(--jp-brand-color2);
+}
+
+/* Disabled state styles */
 select:disabled,
 input:disabled,
 textarea:disabled {
