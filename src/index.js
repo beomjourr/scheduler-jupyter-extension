@@ -16,13 +16,13 @@ import '../style/index.css';
 
 // API 설정
 const API_CONFIG = {
-  baseURL: 'http://localhost:3004',
+  baseURL: 'https://api.namu.dev.samsungdisplay.net:32443',
   endpoints: {
     taskGroups: '/extension/scheduler/experiments/users/${userId}',
     images: '/extension/images/users/${userId}',
     computeResources: '/compute-resources',
     createTask: '/tasks',
-    tasks: '/extension/scheduler/tasks/${userId}',
+    tasks: '/scheduler/runs/users/${userId}',
     notebookDetail: '/extension/notebooks/${notebookId}/detail'
   }
 };
@@ -48,6 +48,7 @@ class SchedulerAPI {
     try {
       const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.taskGroups);
       const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
+      console.log('fetchTaskGroups', response);
       const data = await response.json();
       return data.data.data;
     } catch (error) {
@@ -61,7 +62,7 @@ class SchedulerAPI {
       const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.images);
       const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
       const data = await response.json();
-      this.imageData = data.data;
+      this.imageData = data.data.data;
       return this.imageData;
     } catch (error) {
       console.error('Failed to fetch image data:', error);
