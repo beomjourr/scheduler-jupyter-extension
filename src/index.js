@@ -52,6 +52,51 @@ class SchedulerAPI {
     return endpoint.replace('${userId}', this.userId);
   }
 
+  getResourceDetailsList(typeId) {
+    return this.computeResourceData?.details?.[typeId] || [];
+  }
+
+  // Resource 관련 메서드
+  getResourceDetails(typeId, resourceId) {
+    if (!this.computeResourceData?.details?.[typeId]) return null;
+    return this.computeResourceData.details[typeId].find(detail => detail.id === resourceId);
+  }
+
+
+  setResourceInfo(formData, resourceType, resourceDetail) {
+    const resourceInfo = this.getResourceDetails(resourceType, resourceDetail);
+    if (resourceInfo) {
+      return {
+        ...formData,
+        resourceCpu: resourceInfo.cpu,
+        resourceMemory: resourceInfo.memory,
+        resourceGpu: resourceInfo.gpu,
+        resourceGpuType: resourceInfo.gpuType || "",
+        resourceName: resourceInfo.name
+      };
+    }
+    return formData;
+  }
+
+  getImageDetails(imageId) {
+    if (!this.imageData?.images) return null;
+    return this.imageData.images.find(img => img.id === imageId);
+  }
+
+  setImageInfo(formData, envSet, envDetailValue, notebookEnvData) {
+    if (envSet === "predefined" && notebookEnvData?.image) {
+      formData.imageName = notebookEnvData.image.name;
+      formData.isSharedAsset = notebookEnvData.image.isPublic || false;
+    } else {
+      const imageInfo = this.getImageDetails(envDetailValue);
+      if (imageInfo) {
+        formData.imageName = imageInfo.name;
+        formData.isSharedAsset = imageInfo.isPublic || false;
+      }
+    }
+    return formData;
+  }
+
   async fetchTaskGroups() {
     try {
       const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.taskGroups);
@@ -69,6 +114,7 @@ class SchedulerAPI {
       const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.images);
       const response = await axios.get(`${API_CONFIG.baseURL}${endpoint}`);
       console.log('fetchImageData', response.data.data);
+      this.imageData = response.data.data;  // 클래스 변수에 저장
       return response.data.data;
     } catch (error) {
       console.error('Failed to fetch image data:', error);
@@ -84,11 +130,7 @@ class SchedulerAPI {
         `${API_CONFIG.computeResourcesBaseURL}${API_CONFIG.endpoints.computeResources}`
       );
 
-      // 새로운 API 응답 구조에서 필요한 데이터 추출
-      const resourceItems =
-        response.data[0]?.children?.[0]?.children?.[0]?.children || [];
-
-      // 리소스 아이템을 CPU와 GPU 사용 여부에 따라 분류
+      const resourceItems = response.data[0]?.children?.[0]?.children?.[0]?.children || [];
       const cpuOnlyResources = [];
       const cpuGpuResources = [];
 
@@ -100,7 +142,7 @@ class SchedulerAPI {
           cpu: resourceValues.cpu,
           memory: resourceValues.memory,
           gpu: resourceValues.gpu,
-          gpuType: '',
+          gpuType: "",
         };
 
         if (parseInt(resourceValues.gpu) > 0) {
@@ -112,14 +154,8 @@ class SchedulerAPI {
 
       const formattedData = {
         types: [
-          {
-            id: 'cpu',
-            name: 'CPU',
-          },
-          {
-            id: 'cpu_gpu',
-            name: 'CPU/GPU',
-          },
+          { id: "cpu", name: "CPU" },
+          { id: "cpu_gpu", name: "CPU/GPU" },
         ],
         details: {
           cpu: cpuOnlyResources,
@@ -127,6 +163,7 @@ class SchedulerAPI {
         },
       };
 
+      this.computeResourceData = formattedData;  // 클래스 변수에 저장
       console.log('fetchComputeResourceData formatted', formattedData);
       return formattedData;
     } catch (error) {
@@ -150,23 +187,6 @@ class SchedulerAPI {
     }
   }
 
-  async createTask(taskData) {
-    try {
-      const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.createTask);
-      const response = await axios.post(`${API_CONFIG.baseURL}${endpoint}`, taskData);
-
-      if (!response.data) {
-        throw new Error('작업 생성에 실패했습니다.');
-      }
-
-      return response.data;
-    } catch (error) {
-      throw new Error(
-        error.response?.data?.message || '작업 생성에 실패했습니다.'
-      );
-    }
-  }
-
   async fetchTasks(fromDate, toDate) {
     try {
       const endpoint = this.getUrlWithUserId(
@@ -180,6 +200,31 @@ class SchedulerAPI {
     }
   }
 
+  async createTask(taskData) {
+    try {
+      const enrichedTaskData = {
+        ...taskData,
+        createUserId: this.getUserId(),
+        namespace: taskData.namespace || "",
+        type: "instant",
+        userPath: ""
+      };
+
+      const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.createTask);
+      console.log('taskData', enrichedTaskData);
+      const response = await axios.post(`${API_CONFIG.baseURL}${endpoint}`, enrichedTaskData);
+
+      if (!response.data) {
+        throw new Error('작업 생성에 실패했습니다.');
+      }
+
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || '작업 생성에 실패했습니다.');
+    }
+  }
+
+  // 초기화 메서드
   async initializeData() {
     try {
       const [taskGroups, imageData, computeResourceData, notebookDetail] =
@@ -189,10 +234,6 @@ class SchedulerAPI {
           this.fetchComputeResourceData(),
           this.fetchNotebookDetail('notebook-123'),
         ]);
-
-      // Store data in class properties for later use
-      this.imageData = imageData;
-      this.computeResourceData = computeResourceData;
 
       return {
         taskGroups,
@@ -211,12 +252,22 @@ class SchedulerAPI {
     }
   }
 
-  getEnvironmentDetails(processor) {
-    return this.imageData?.images?.filter((img) => img.processor === processor) || [];
-  }
+  // Utility 메서드
+  extractResourceValues(codeValue) {
+    try {
+      const cpuMatch = codeValue.match(/"cpu":(\d+)/);
+      const gpuMatch = codeValue.match(/"gpu":(\d+)/);
+      const memMatch = codeValue.match(/"mem":(\d+)/);
 
-  getResourceDetails(typeId) {
-    return this.computeResourceData?.details?.[typeId] || [];
+      return {
+        cpu: cpuMatch ? cpuMatch[1] : '0',
+        gpu: gpuMatch ? gpuMatch[1] : '0',
+        memory: memMatch ? memMatch[1] : '0',
+      };
+    } catch (error) {
+      console.error('Failed to extract resource values:', error);
+      return { cpu: '0', gpu: '0', memory: '0' };
+    }
   }
 
   validateForm(formData) {
@@ -234,23 +285,6 @@ class SchedulerAPI {
     }
 
     return null;
-  }
-
-  extractResourceValues(codeValue) {
-    try {
-      const cpuMatch = codeValue.match(/"cpu":(\d+)/);
-      const gpuMatch = codeValue.match(/"gpu":(\d+)/);
-      const memMatch = codeValue.match(/"mem":(\d+)/);
-
-      return {
-        cpu: cpuMatch ? cpuMatch[1] : '0',
-        gpu: gpuMatch ? gpuMatch[1] : '0',
-        memory: memMatch ? memMatch[1] : '0',
-      };
-    } catch (error) {
-      console.error('Failed to extract resource values:', error);
-      return { cpu: '0', gpu: '0', memory: '0' };
-    }
   }
 }
 
@@ -550,7 +584,7 @@ class ContentWidget extends Widget {
     if (!resourceDetailSelect) return;
 
     resourceDetailSelect.innerHTML = '<option value="">세부 자원</option>';
-    const details = this.api.getResourceDetails(typeId);
+    const details = this.api.getResourceDetailsList(typeId);
 
     details.forEach(detail => {
       const option = document.createElement('option');
@@ -677,7 +711,6 @@ class ContentWidget extends Widget {
   }
 
   saveFormData() {
-    // 현재 폼 데이터 저장
     const formElements = {
       taskName: 'name',
       taskDescription: 'description',
@@ -696,25 +729,38 @@ class ContentWidget extends Widget {
       }
     });
 
-    // resourceDetail이 선택되었을 때 resourceName 설정
-    const resourceDetailSelect = this.node.querySelector('#resourceDetail');
-    if (resourceDetailSelect && resourceDetailSelect.value) {
-      const selectedOption = resourceDetailSelect.options[resourceDetailSelect.selectedIndex];
-      this.formData.resourceName = selectedOption.textContent;
+    // resourceDetail이 선택되었을 때 리소스 정보 설정
+    const resourceType = this.node.querySelector('#resourceType')?.value;
+    const resourceDetail = this.node.querySelector('#resourceDetail')?.value;
+    if (resourceType && resourceDetail) {
+      // setResourceInfo 메서드 호출하여 리소스 관련 필드 설정
+      this.formData = this.api.setResourceInfo(
+        this.formData,
+        resourceType,
+        resourceDetail
+      );
     }
 
-    // envDetail이 선택되었을 때 imageName 설정
-    const envDetailSelect = this.node.querySelector('#envDetail');
-    if (envDetailSelect && envDetailSelect.value) {
-      const selectedOption = envDetailSelect.options[envDetailSelect.selectedIndex];
-      this.formData.imageName = selectedOption.textContent;
+    // envDetail이 선택되었을 때 이미지 정보 설정
+    const envSet = this.formData.envSet;
+    const envDetail = this.node.querySelector('#envDetail')?.value;
+    if (envDetail) {
+      this.formData = this.api.setImageInfo(
+        this.formData,
+        envSet,
+        envDetail,
+        this.notebookEnvData
+      );
     }
 
     // 파라미터 저장
     this.formData.runParameters = Array.from(this.parameters.entries()).map(
       ([key, value]) => ({ key, value })
     );
-}
+
+    // namespace 설정
+    this.formData.namespace = this.formData.namespace || "";
+  }
 }
 
 class SchedulerWidget extends Widget {
