@@ -42,10 +42,10 @@ class SchedulerAPI {
   }
 
   getUserId() {
+    console.log('process.env', process.env);
     if (process.env.userId) {
       return process.env.userId;
     }
-    return 'user123';
   }
 
   getUrlWithUserId(endpoint) {
@@ -227,12 +227,11 @@ class SchedulerAPI {
   // 초기화 메서드
   async initializeData() {
     try {
-      const [taskGroups, imageData, computeResourceData, notebookDetail] =
+      const [taskGroups, imageData, computeResourceData] =
         await Promise.all([
           this.fetchTaskGroups(),
           this.fetchImageData(),
           this.fetchComputeResourceData(),
-          this.fetchNotebookDetail('notebook-123'),
         ]);
 
       return {
@@ -247,7 +246,6 @@ class SchedulerAPI {
         taskGroups: [],
         imageData: { images: [] },
         computeResourceData: { types: [], details: {} },
-        notebookDetail: null,
       };
     }
   }
@@ -267,6 +265,24 @@ class SchedulerAPI {
     } catch (error) {
       console.error('Failed to extract resource values:', error);
       return { cpu: '0', gpu: '0', memory: '0' };
+    }
+  }
+
+  extractNotebookId() {
+    try {
+      if (process.env.NB_PREFIX) {
+        const nbPrefix = process.env.NB_PREFIX;
+        if (nbPrefix) {
+          const lastPart = nbPrefix.split("/").pop() || "";
+          const notebookId = lastPart.match(/\d+/)[0];
+          console.log("notebookId", notebookId);
+          return notebookId;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error("Error extracting notebook ID:", error);
+      return null;
     }
   }
 
@@ -333,25 +349,31 @@ class ContentWidget extends Widget {
 
   async initializeContent() {
     try {
-      const { taskGroups, imageData, computeResourceData, notebookDetail } = 
+      const { taskGroups, imageData, computeResourceData } = 
         await this.api.initializeData();
   
       this.updateTaskGroups(taskGroups);
       this.updateResourceOptions(imageData, computeResourceData);
   
-      if (notebookDetail?.notebook) {
+      const notebookId = this.api.extractNotebookId();
+      console.log("notebookId", notebookId);
+
+      if (notebookId) {
         try {
-          this.updateNotebookData(notebookDetail);
+          const notebookDetail = await this.api.fetchNotebookDetail(notebookId);
+          if (notebookDetail?.notebook) {
+            this.updateNotebookData(notebookDetail);
+          }
         } catch (error) {
           console.error('Error updating notebook data:', error);
         }
       }
-  
+
       const envSelectors = this.node.querySelector('#envSelectors');
       if (envSelectors) {
         envSelectors.style.display = 'none';
       }
-  
+
       try {
         this.restoreFormData();
       } catch (error) {
