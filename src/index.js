@@ -322,6 +322,7 @@ class ContentWidget extends Widget {
     this.currentPath = '파일이 선택되지 않았습니다';
     this.parameters = new Map();
     this.formData = { ...defaultData };
+    this.notebookEnvData = null;
 
     this.node.innerHTML = schedulerTemplate;
     this.commandInput = this.node.querySelector('#command');
@@ -331,22 +332,36 @@ class ContentWidget extends Widget {
   }
 
   async initializeContent() {
-    const { taskGroups, imageData, computeResourceData, notebookDetail } = 
-      await this.api.initializeData();
-
-    this.updateTaskGroups(taskGroups);
-    this.updateResourceOptions(imageData, computeResourceData);
-
-    if (notebookDetail?.notebook) {
-      this.updateNotebookData(notebookDetail);
+    try {
+      const { taskGroups, imageData, computeResourceData, notebookDetail } = 
+        await this.api.initializeData();
+  
+      this.updateTaskGroups(taskGroups);
+      this.updateResourceOptions(imageData, computeResourceData);
+  
+      if (notebookDetail?.notebook) {
+        try {
+          this.updateNotebookData(notebookDetail);
+        } catch (error) {
+          console.error('Error updating notebook data:', error);
+        }
+      }
+  
+      const envSelectors = this.node.querySelector('#envSelectors');
+      if (envSelectors) {
+        envSelectors.style.display = 'none';
+      }
+  
+      try {
+        this.restoreFormData();
+      } catch (error) {
+        console.error('Error restoring form data:', error);
+        this.formData = { ...defaultData };
+      }
+    } catch (error) {
+      console.error('Error initializing content:', error);
+      this.formData = { ...defaultData };
     }
-
-    const envSelectors = this.node.querySelector('#envSelectors');
-    if (envSelectors) {
-      envSelectors.style.display = 'none';
-    }
-
-    this.restoreFormData();
   }
 
   initializeEventHandlers() {
@@ -370,10 +385,19 @@ class ContentWidget extends Widget {
     this.node.querySelectorAll('input[name="envSet"]').forEach(radio => {
       radio.addEventListener('change', e => {
         const envSelectors = this.node.querySelector('#envSelectors');
-        if (envSelectors) {
-          envSelectors.style.display =
-            e.target.value === 'custom' ? 'block' : 'none';
+        const envType = this.node.querySelector('#envType');
+        const envDetail = this.node.querySelector('#envDetail');
+        
+        if (e.target.value === 'custom') {
+          if (envSelectors) envSelectors.style.display = 'block';
+          if (envType) envType.style.display = 'block';
+          if (envDetail) envDetail.style.display = 'block';
+        } else {
+          if (envSelectors) envSelectors.style.display = 'none';
+          if (envType) envType.style.display = 'none';
+          if (envDetail) envDetail.style.display = 'none';
         }
+        
         this.formData.envSet = e.target.value;
       });
     });
@@ -441,11 +465,26 @@ class ContentWidget extends Widget {
       }
 
       if (notebook.image) {
+        // notebookEnvData 저장
+        this.notebookEnvData = {
+          image: {
+            name: notebook.image.name,
+            isPublic: notebook.image.isPublic
+          },
+          processor: notebook.image.processor,
+          imageId: notebook.image.id,
+          namespace: notebook.namespace
+        };
+
+        // formData 업데이트
         this.formData.imageName = notebook.image.name;
         this.formData.isSharedAsset = notebook.image.isPublic;
         this.formData.envType = notebook.image.processor;
         this.formData.envDetail = notebook.image.id;
+        this.formData.namespace = notebook.namespace;
       }
+      
+      this.saveFormData();
     }
   }
 
@@ -567,14 +606,16 @@ class ContentWidget extends Widget {
   updateEnvDetailOptions(processor) {
     const envDetailSelect = this.node.querySelector('#envDetail');
     if (!envDetailSelect) return;
-
+  
     envDetailSelect.innerHTML = '<option value="">세부 내용 선택</option>';
-    const filteredImages = this.api.getEnvironmentDetails(processor);
-
+    const filteredImages = this.api.imageData?.images.filter(
+      img => img.processor === processor
+    ) || [];
+  
     filteredImages.forEach(image => {
       const option = document.createElement('option');
       option.value = image.id;
-      option.textContent = image.displayName;
+      option.textContent = image.displayName || image.name;
       envDetailSelect.appendChild(option);
     });
   }
@@ -722,6 +763,7 @@ class ContentWidget extends Widget {
       envDetail: 'envDetail'
     };
 
+    // 기본 폼 필드 데이터 저장
     Object.entries(formElements).forEach(([elementId, dataKey]) => {
       const element = this.node.querySelector(`#${elementId}`);
       if (element) {
@@ -729,7 +771,31 @@ class ContentWidget extends Widget {
       }
     });
 
-    // resourceDetail이 선택되었을 때 리소스 정보 설정
+    // 환경 설정 처리
+    const envSet = document.querySelector('input[name="envSet"]:checked').value;
+    this.formData.envSet = envSet;
+
+    if (envSet === "predefined") {
+      // 기존 자원 활용인 경우
+      if (this.notebookEnvData?.image) {
+        this.formData.imageName = this.notebookEnvData.image.name;
+        this.formData.isSharedAsset = this.notebookEnvData.image.isPublic;
+        this.formData.envType = this.notebookEnvData.processor;
+        this.formData.envDetail = this.notebookEnvData.imageId;
+      }
+    } else {
+      // 새로운 환경 구성인 경우
+      const envDetail = this.node.querySelector('#envDetail')?.value;
+      if (envDetail) {
+        const imageInfo = this.api.getImageDetails(envDetail);
+        if (imageInfo) {
+          this.formData.imageName = imageInfo.name;
+          this.formData.isSharedAsset = imageInfo.isPublic || false;
+        }
+      }
+    }
+
+    // 리소스 정보 처리
     const resourceType = this.node.querySelector('#resourceType')?.value;
     const resourceDetail = this.node.querySelector('#resourceDetail')?.value;
     if (resourceType && resourceDetail) {
@@ -741,23 +807,10 @@ class ContentWidget extends Widget {
       );
     }
 
-    // envDetail이 선택되었을 때 이미지 정보 설정
-    const envSet = this.formData.envSet;
-    const envDetail = this.node.querySelector('#envDetail')?.value;
-    if (envDetail) {
-      this.formData = this.api.setImageInfo(
-        this.formData,
-        envSet,
-        envDetail,
-        this.notebookEnvData
-      );
-    }
-
-    // 파라미터 저장
+    // 파라미터 및 namespace 처리
     this.formData.runParameters = Array.from(this.parameters.entries()).map(
       ([key, value]) => ({ key, value })
     );
-
     // namespace 설정
     this.formData.namespace = this.formData.namespace || "";
   }
@@ -974,16 +1027,20 @@ const plugin = {
     });
 
     // 파일 브라우저 선택 변경 이벤트 리스너
-    fileBrowser.defaultBrowser.selectionChanged.connect((_, selection) => {
-      if (selection.first) {
-        const item = selection.first;
-        const isValidFile = item.path.endsWith('.py') || item.path.endsWith('.ipynb');
-        
-        if (isValidFile) {
-          panel.updateFilePath(item.path);
+    if (fileBrowser?.defaultBrowser?.selectionChanged) {
+      fileBrowser.defaultBrowser.selectionChanged.connect((_, selection) => {
+        if (selection.first) {
+          const item = selection.first;
+          const isValidFile = item.path.endsWith('.py') || item.path.endsWith('.ipynb');
+          
+          if (isValidFile) {
+            panel.updateFilePath(item.path);
+          }
         }
-      }
-    });
+      });
+    } else {
+      console.warn('File browser or selection changed event not available');
+    }
   }
 };
 
