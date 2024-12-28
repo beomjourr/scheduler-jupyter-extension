@@ -7,7 +7,7 @@ export const schedulerTemplate = `
       </div>
       <div class="group-content collapsed">
         <div class="form-row">
-          <label class="form-label required">작업 그룹명</label>
+          <label class="form-label">작업 그룹명</label>
           <select id="groupName">
             <option value="">선택하세요</option>
           </select>
