@@ -4,7 +4,6 @@ import {
 } from '@jupyterlab/application';
 
 import { Widget } from '@lumino/widgets';
-
 import { ICommandPalette, Dialog, showDialog } from '@jupyterlab/apputils';
 import { IFileBrowserFactory } from '@jupyterlab/filebrowser';
 import { DocumentWidget } from '@jupyterlab/docregistry';
@@ -14,43 +13,51 @@ import { schedulerTemplate } from './templates/scheduler-create';
 import { schedulerStatusTemplate } from './templates/scheduler-status';
 import '../style/index.css';
 
+import axios from 'axios';
+
 // API 설정
 const API_CONFIG = {
-  baseURL: 'https://api.namu.dev.samsungdisplay.net:32443',
+  baseURL: 'http://localhost:3004',
+  computeResourcesBaseURL: 'http://localhost:3004',
   endpoints: {
     taskGroups: '/extension/scheduler/experiments/users/${userId}',
     images: '/extension/images/users/${userId}',
-    computeResources: '/compute-resources',
+    computeResources: '/resources',
     createTask: '/tasks',
     tasks: '/scheduler/runs/users/${userId}',
     notebookDetail: '/extension/notebooks/${notebookId}/detail'
   }
 };
 
-const SCHEDULER_DETAIL_PAGE_URL = 'localhost3004/#/apt/namu/scheduler/job';
+// SSL 인증서 검증 비활성화 (전역 설정)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
-// 아이콘 정의
-const playIconStr = `
-<svg xmlns="http://www.w3.org/2000/svg" width="16" viewBox="0 0 24 24">
-  <path d="M8 5v14l11-7z"/>
-</svg>
-`;
-const playIcon = new LabIcon({ name: 'scheduler:play', svgstr: playIconStr });
 
 // API 클래스 구현
 class SchedulerAPI {
   constructor() {
     this.imageData = null;
     this.computeResourceData = null;
+    this.userId = this.getUserId();
+  }
+
+  getUserId() {
+    if (process.env.userId) {
+      return process.env.userId;
+    }
+    return 'user123';
+  }
+
+  getUrlWithUserId(endpoint) {
+    return endpoint.replace('${userId}', this.userId);
   }
 
   async fetchTaskGroups() {
     try {
       const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.taskGroups);
-      const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
-      console.log('fetchTaskGroups', response);
-      const data = await response.json();
-      return data.data.data;
+      const response = await axios.get(`${API_CONFIG.baseURL}${endpoint}`);
+      console.log('fetchTaskGroups', response.data.data.data);
+      return response.data.data.data;
     } catch (error) {
       console.error('Failed to fetch task groups:', error);
       return [];
@@ -60,44 +67,83 @@ class SchedulerAPI {
   async fetchImageData() {
     try {
       const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.images);
-      const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
-      const data = await response.json();
-      this.imageData = data.data.data;
-      return this.imageData;
+      const response = await axios.get(`${API_CONFIG.baseURL}${endpoint}`);
+      console.log('fetchImageData', response.data.data);
+      return response.data.data;
     } catch (error) {
       console.error('Failed to fetch image data:', error);
       return {
-        images: []
+        images: [],
       };
     }
   }
 
   async fetchComputeResourceData() {
     try {
-      const endpoint = this.getUrlWithUserId(
-        API_CONFIG.endpoints.computeResources
+      const response = await axios.get(
+        `${API_CONFIG.computeResourcesBaseURL}${API_CONFIG.endpoints.computeResources}`
       );
-      const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
-      this.computeResourceData = await response.json();
-      return this.computeResourceData;
+
+      // 새로운 API 응답 구조에서 필요한 데이터 추출
+      const resourceItems =
+        response.data[0]?.children?.[0]?.children?.[0]?.children || [];
+
+      // 리소스 아이템을 CPU와 GPU 사용 여부에 따라 분류
+      const cpuOnlyResources = [];
+      const cpuGpuResources = [];
+
+      resourceItems.forEach((item) => {
+        const resourceValues = this.extractResourceValues(item.contents.codeValue);
+        const resourceItem = {
+          id: item.id,
+          name: item.contents.messageDefault,
+          cpu: resourceValues.cpu,
+          memory: resourceValues.memory,
+          gpu: resourceValues.gpu,
+          gpuType: '',
+        };
+
+        if (parseInt(resourceValues.gpu) > 0) {
+          cpuGpuResources.push(resourceItem);
+        } else {
+          cpuOnlyResources.push(resourceItem);
+        }
+      });
+
+      const formattedData = {
+        types: [
+          {
+            id: 'cpu',
+            name: 'CPU',
+          },
+          {
+            id: 'cpu_gpu',
+            name: 'CPU/GPU',
+          },
+        ],
+        details: {
+          cpu: cpuOnlyResources,
+          cpu_gpu: cpuGpuResources,
+        },
+      };
+
+      console.log('fetchComputeResourceData formatted', formattedData);
+      return formattedData;
     } catch (error) {
       console.error('Failed to fetch compute resource data:', error);
       return {
         types: [],
-        details: {}
+        details: {},
       };
     }
   }
 
   async fetchNotebookDetail(notebookId) {
     try {
-      const endpoint = API_CONFIG.endpoints.notebookDetail.replace(
-        '${notebookId}',
-        notebookId
-      );
-      const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`);
-      const data = await response.json();
-      return data.data;
+      const endpoint = API_CONFIG.endpoints.notebookDetail.replace('${notebookId}', notebookId);
+      const response = await axios.get(`${API_CONFIG.baseURL}${endpoint}`);
+      console.log('fetchNotebookDetail', response.data.data);
+      return response.data.data;
     } catch (error) {
       console.error('Failed to fetch notebook detail:', error);
       return null;
@@ -105,43 +151,80 @@ class SchedulerAPI {
   }
 
   async createTask(taskData) {
-    const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.createTask);
-    const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(taskData)
-    });
+    try {
+      const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.createTask);
+      const response = await axios.post(`${API_CONFIG.baseURL}${endpoint}`, taskData);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || '작업 생성에 실패했습니다.');
+      if (!response.data) {
+        throw new Error('작업 생성에 실패했습니다.');
+      }
+
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || '작업 생성에 실패했습니다.'
+      );
     }
-
-    return response.json();
   }
 
-  async fetchTasks(startDate, endDate) {
+  async fetchTasks(fromDate, toDate) {
     try {
       const endpoint = this.getUrlWithUserId(
-        `${API_CONFIG.baseURL}${API_CONFIG.endpoints.tasks}?startDate=${startDate}&endDate=${endDate}`
+        `${API_CONFIG.endpoints.tasks}?fromDate=${fromDate}&toDate=${toDate}`
       );
-      const response = await fetch(endpoint);
-      return response.data;
+      const response = await axios.get(`${API_CONFIG.baseURL}${endpoint}`);
+      return response.data.data.data;
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
       return [];
     }
   }
 
+  async initializeData() {
+    try {
+      const [taskGroups, imageData, computeResourceData, notebookDetail] =
+        await Promise.all([
+          this.fetchTaskGroups(),
+          this.fetchImageData(),
+          this.fetchComputeResourceData(),
+          this.fetchNotebookDetail('notebook-123'),
+        ]);
+
+      // Store data in class properties for later use
+      this.imageData = imageData;
+      this.computeResourceData = computeResourceData;
+
+      return {
+        taskGroups,
+        imageData,
+        computeResourceData,
+        notebookDetail,
+      };
+    } catch (error) {
+      console.error('Failed to initialize data:', error);
+      return {
+        taskGroups: [],
+        imageData: { images: [] },
+        computeResourceData: { types: [], details: {} },
+        notebookDetail: null,
+      };
+    }
+  }
+
+  getEnvironmentDetails(processor) {
+    return this.imageData?.images?.filter((img) => img.processor === processor) || [];
+  }
+
+  getResourceDetails(typeId) {
+    return this.computeResourceData?.details?.[typeId] || [];
+  }
+
   validateForm(formData) {
     const requiredFields = {
-      groupName: '작업 그룹명',
-      taskName: '작업명',
-      selectedFile: '실행 파일',
-      resourceType: '자원 종류',
-      resourceDetail: '세부 자원'
+      name: '작업명',
+      outputPath: '실행 파일',
+      imageName: '개발환경세트',
+      resourceName: '연산 필요 자원',
     };
 
     for (const [field, label] of Object.entries(requiredFields)) {
@@ -150,116 +233,158 @@ class SchedulerAPI {
       }
     }
 
-    if (formData.envSet === 'custom') {
-      if (!formData.envType || !formData.envDetail) {
-        return '개발환경을 선택해주세요.';
-      }
-    }
-
     return null;
   }
 
-  getUserId() {
-    if (process.env.userId) {
-      return process.env.userId;
+  extractResourceValues(codeValue) {
+    try {
+      const cpuMatch = codeValue.match(/"cpu":(\d+)/);
+      const gpuMatch = codeValue.match(/"gpu":(\d+)/);
+      const memMatch = codeValue.match(/"mem":(\d+)/);
+
+      return {
+        cpu: cpuMatch ? cpuMatch[1] : '0',
+        gpu: gpuMatch ? gpuMatch[1] : '0',
+        memory: memMatch ? memMatch[1] : '0',
+      };
+    } catch (error) {
+      console.error('Failed to extract resource values:', error);
+      return { cpu: '0', gpu: '0', memory: '0' };
     }
-    return null;
-  }
-
-  getUrlWithUserId(endpoint) {
-    const userId = this.getUserId();
-    if (!userId) {
-      return endpoint;
-    }
-    return endpoint.replace('${userId}', userId);
-  }
-
-  getEnvironmentDetails(typeId) {
-    return (
-      this.imageData?.images?.filter(img => img.processor === typeId) || []
-    );
-  }
-
-  getResourceDetails(typeId) {
-    return this.computeResourceData?.details?.[typeId] || [];
   }
 }
+
+const defaultData = {
+  name: "",
+  description: "",
+  experimentId: "",
+  outputPath: "",
+  imageName: "",
+  isSharedAsset: false,
+  createUserId: "",
+  resourceGpuType: "",
+  resourceCpu: "",
+  resourceMemory: "",
+  resourceName: "",
+  resourceGpu: "",
+  namespace: "",
+  type: "instant",
+  userPath: "",
+  executionCommand: "",
+  envSet: "predefined",
+  envType: "",
+  envDetail: "",
+  resourceType: "",
+  resourceDetail: "",
+  runParameters: []
+};
 
 class ContentWidget extends Widget {
   constructor(app) {
     super();
+    this.addClass('jp-scheduler-content');
     this.api = new SchedulerAPI();
     this.app = app;
-    this.commandInput = null;
     this.currentPath = '파일이 선택되지 않았습니다';
     this.parameters = new Map();
-    this.savedState = null;
-    this.notebookId = null;
+    this.formData = { ...defaultData };
 
-    this.addClass('jp-scheduler-content');
     this.node.innerHTML = schedulerTemplate;
+    this.commandInput = this.node.querySelector('#command');
+    
     this.initializeContent();
     this.initializeEventHandlers();
   }
 
-  extractNotebookId(path) {
-    try {
-      const parts = path.split('/');
-      if (parts.length >= 4) {
-        const notebookPart = parts[3];
-        if (notebookPart.startsWith('notebook-')) {
-          return notebookPart.replace('notebook-', '');
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('Error extracting notebook ID:', error);
-      return null;
-    }
-  }
-
-  async fetchNotebookDetail(notebookId) {
-    if (!notebookId) return null;
-
-    try {
-      const notebookDetail = await this.api.fetchNotebookDetail(notebookId);
-      return notebookDetail;
-    } catch (error) {
-      console.error('Failed to fetch notebook detail:', error);
-      return null;
-    }
-  }
-
-  async updateNotebookData(notebookId) {
-    const notebookDetail = await this.fetchNotebookDetail(notebookId);
-    if (notebookDetail?.notebook) {
-      const { notebook } = notebookDetail;
-
-      const taskNameInput = this.node.querySelector('#taskName');
-      if (taskNameInput) {
-        taskNameInput.value = `${notebook.notebookName}-스케줄러`;
-      }
-
-      if (notebook.image) {
-        const predefinedRadio = this.node.querySelector(
-          'input[name="envSet"][value="predefined"]'
-        );
-        if (predefinedRadio) {
-          predefinedRadio.checked = true;
-          const envTypeSelect = this.node.querySelector('#envType');
-          const envDetailSelect = this.node.querySelector('#envDetail');
-
-          if (envTypeSelect && envDetailSelect) {
-            envTypeSelect.value = notebook.image.processor;
-            envDetailSelect.value = notebook.image.id;
-          }
-        }
-      }
-    }
-  }
-
   async initializeContent() {
-    const taskGroups = await this.api.fetchTaskGroups();
+    const { taskGroups, imageData, computeResourceData, notebookDetail } = 
+      await this.api.initializeData();
+
+    this.updateTaskGroups(taskGroups);
+    this.updateResourceOptions(imageData, computeResourceData);
+
+    if (notebookDetail?.notebook) {
+      this.updateNotebookData(notebookDetail);
+    }
+
+    const envSelectors = this.node.querySelector('#envSelectors');
+    if (envSelectors) {
+      envSelectors.style.display = 'none';
+    }
+
+    this.restoreFormData();
+  }
+
+  initializeEventHandlers() {
+    // 파일 선택 버튼
+    const fileSelectBtn = this.node.querySelector('#fileSelectBtn');
+    fileSelectBtn?.addEventListener('click', () => {
+      this.app.commands.execute('filebrowser:activate');
+    });
+
+    // 그룹 헤더 토글
+    this.node
+      .querySelectorAll('.group-header[data-action="toggle"]')
+      .forEach(header => {
+        header.addEventListener('click', () => {
+          header.classList.toggle('collapsed');
+          header.nextElementSibling?.classList.toggle('collapsed');
+        });
+      });
+
+    // 환경 설정 라디오 버튼
+    this.node.querySelectorAll('input[name="envSet"]').forEach(radio => {
+      radio.addEventListener('change', e => {
+        const envSelectors = this.node.querySelector('#envSelectors');
+        if (envSelectors) {
+          envSelectors.style.display =
+            e.target.value === 'custom' ? 'block' : 'none';
+        }
+        this.formData.envSet = e.target.value;
+      });
+    });
+
+    // 드롭다운 이벤트
+    const envTypeSelect = this.node.querySelector('#envType');
+    envTypeSelect?.addEventListener('change', e => {
+      this.updateEnvDetailOptions(e.target.value);
+      this.formData.envType = e.target.value;
+    });
+
+    const resourceTypeSelect = this.node.querySelector('#resourceType');
+    resourceTypeSelect?.addEventListener('change', e => {
+      this.updateResourceDetailOptions(e.target.value);
+      this.formData.resourceType = e.target.value;
+    });
+
+    // 파라미터 관련 이벤트
+    this.initializeParameterHandlers();
+
+    // 제출 버튼
+    const submitBtn = this.node.querySelector('#submitBtn');
+    submitBtn?.addEventListener('click', () => this.handleSubmit());
+
+    // 폼 필드 변경 이벤트
+    this.initializeFormFieldHandlers();
+  }
+
+  initializeFormFieldHandlers() {
+    ['taskName', 'taskDescription'].forEach(id => {
+      const element = this.node.querySelector(`#${id}`);
+      element?.addEventListener('change', e => {
+        this.formData[id === 'taskName' ? 'name' : 'description'] = e.target.value;
+      });
+    });
+
+    ['groupName', 'envDetail', 'resourceDetail'].forEach(id => {
+      const element = this.node.querySelector(`#${id}`);
+      element?.addEventListener('change', e => {
+        this.formData[id] = e.target.value;
+      });
+    });
+  }
+
+  updateTaskGroups(taskGroups) {
     const groupSelect = this.node.querySelector('#groupName');
     if (groupSelect) {
       groupSelect.innerHTML = '<option value="">선택하세요</option>';
@@ -270,59 +395,24 @@ class ContentWidget extends Widget {
         groupSelect.appendChild(option);
       });
     }
-
-    const imageData = await this.api.fetchImageData();
-    const computeData = await this.api.fetchComputeResourceData();
-    this.updateResourceOptions(imageData, computeData);
-
-    // 초기에 envSelectors 숨기기
-    const envSelectors = this.node.querySelector('#envSelectors');
-    if (envSelectors) {
-      envSelectors.style.display = 'none';
-    }
   }
 
-  initializeEventHandlers() {
-    this.commandInput = this.node.querySelector('#command');
+  updateNotebookData(notebookDetail) {
+    const { notebook } = notebookDetail;
+    if (notebook) {
+      this.formData.name = `${notebook.notebookName}-스케줄러`;
+      const taskNameInput = this.node.querySelector('#taskName');
+      if (taskNameInput) {
+        taskNameInput.value = this.formData.name;
+      }
 
-    const fileSelectBtn = this.node.querySelector('#fileSelectBtn');
-    fileSelectBtn?.addEventListener('click', () => {
-      this.app.commands.execute('filebrowser:activate');
-    });
-
-    this.node
-      .querySelectorAll('.group-header[data-action="toggle"]')
-      .forEach(header => {
-        header.addEventListener('click', () => {
-          header.classList.toggle('collapsed');
-          header.nextElementSibling?.classList.toggle('collapsed');
-        });
-      });
-
-    this.node.querySelectorAll('input[name="envSet"]').forEach(radio => {
-      radio.addEventListener('change', e => {
-        const envSelectors = this.node.querySelector('#envSelectors');
-        if (envSelectors) {
-          envSelectors.style.display =
-            e.target.value === 'custom' ? 'block' : 'none';
-        }
-      });
-    });
-
-    const envTypeSelect = this.node.querySelector('#envType');
-    envTypeSelect?.addEventListener('change', e => {
-      this.updateEnvDetailOptions(e.target.value);
-    });
-
-    const resourceTypeSelect = this.node.querySelector('#resourceType');
-    resourceTypeSelect?.addEventListener('change', e => {
-      this.updateResourceDetailOptions(e.target.value);
-    });
-
-    this.initializeParameterHandlers();
-
-    const submitBtn = this.node.querySelector('#submitBtn');
-    submitBtn?.addEventListener('click', () => this.handleSubmit());
+      if (notebook.image) {
+        this.formData.imageName = notebook.image.name;
+        this.formData.isSharedAsset = notebook.image.isPublic;
+        this.formData.envType = notebook.image.processor;
+        this.formData.envDetail = notebook.image.id;
+      }
+    }
   }
 
   initializeParameterHandlers() {
@@ -331,66 +421,10 @@ class ContentWidget extends Widget {
     const paramKey = this.node.querySelector('#paramKey');
     const paramValue = this.node.querySelector('#paramValue');
 
-    const updateCommand = () => {
-      if (this.commandInput && !this.commandInput.disabled) {
-        const currentCommand = this.commandInput.value;
-        let segments = [];
-        let paramStart = -1;
-        let paramEnd = -1;
-        let inParam = false;
-
-        // 현재 명령어를 순회하면서 파라미터 영역 찾기
-        for (let i = 0; i < currentCommand.length; i++) {
-          if (currentCommand.startsWith('--', i)) {
-            if (!inParam) {
-              if (paramStart === -1) {
-                paramStart = i;
-              }
-              inParam = true;
-            }
-          } else if (inParam && currentCommand[i] === ' ') {
-            inParam = false;
-            paramEnd = i;
-          }
-        }
-        if (inParam) {
-          paramEnd = currentCommand.length;
-        }
-
-        // 명령어를 세 부분으로 나누기: 앞부분, 파라미터 부분, 뒷부분
-        let prefix = '';
-        let suffix = '';
-
-        if (paramStart !== -1) {
-          prefix = currentCommand.substring(0, paramStart).trim();
-          suffix = currentCommand.substring(paramEnd).trim();
-        } else {
-          prefix = currentCommand.trim();
-        }
-
-        // 현재 파라미터들로 새로운 파라미터 문자열 생성
-        const paramCommands = Array.from(this.parameters.entries())
-          .map(([key, value]) => `--${key}=${value}`)
-          .join(' ');
-
-        // 세 부분 다시 조합
-        let newCommand = prefix;
-        if (paramCommands) {
-          newCommand = newCommand
-            ? `${newCommand} ${paramCommands}`
-            : paramCommands;
-        }
-        if (suffix) {
-          newCommand = `${newCommand} ${suffix}`;
-        }
-
-        this.commandInput.value = newCommand;
-      }
-    };
-
     addParamBtn?.addEventListener('click', async () => {
-      if (paramKey.value) {
+      if (paramKey?.value) {
         const key = paramKey.value.trim();
+        const value = paramValue?.value.trim() || '';
 
         if (this.parameters.has(key)) {
           await showDialog({
@@ -401,44 +435,76 @@ class ContentWidget extends Widget {
           return;
         }
 
-        this.parameters.set(key, paramValue.value.trim());
-
-        if (paramTableBody) {
-          const row = paramTableBody.insertRow();
-          row.innerHTML = `
-            <td>${key}</td>
-            <td>
-              <input type="text" class="param-value-input" value="${paramValue.value.trim()}" />
-            </td>
-            <td class="param-row-action">
-              <button class="btn btn-small btn-danger">삭제</button>
-            </td>
-          `;
-
-          // 값 수정 이벤트 처리
-          const valueInput = row.querySelector('.param-value-input');
-          valueInput?.addEventListener('change', e => {
-            this.parameters.set(key, e.target.value.trim());
-            updateCommand();
-          });
-
-          const deleteBtn = row.querySelector('.btn-danger');
-          deleteBtn?.addEventListener('click', () => {
-            this.parameters.delete(key);
-            row.remove();
-            updateCommand();
-          });
-        }
+        this.parameters.set(key, value);
+        this.updateParamTable();
+        this.updateCommand();
 
         paramKey.value = '';
         paramValue.value = '';
-        updateCommand();
       }
+    });
+
+    this.commandInput?.addEventListener('change', () => {
+      this.updateCommand();
     });
   }
 
+  updateParamTable() {
+    const paramTableBody = this.node.querySelector('#paramTableBody');
+    if (paramTableBody) {
+      paramTableBody.innerHTML = '';
+      this.parameters.forEach((value, key) => {
+        const row = paramTableBody.insertRow();
+        row.innerHTML = `
+          <td>${key}</td>
+          <td>
+            <input type="text" class="param-value-input" value="${value}" />
+          </td>
+          <td class="param-row-action">
+            <button class="btn btn-small btn-danger">삭제</button>
+          </td>
+        `;
+
+        const valueInput = row.querySelector('.param-value-input');
+        valueInput?.addEventListener('change', e => {
+          this.parameters.set(key, e.target.value.trim());
+          this.updateCommand();
+        });
+
+        const deleteBtn = row.querySelector('.btn-danger');
+        deleteBtn?.addEventListener('click', () => {
+          this.parameters.delete(key);
+          row.remove();
+          this.updateCommand();
+        });
+      });
+    }
+  }
+
+  updateCommand() {
+    if (this.commandInput && !this.commandInput.disabled) {
+      const currentCommand = this.commandInput.value;
+      let prefix = '';
+      let paramStart = currentCommand.indexOf('--');
+      
+      if (paramStart !== -1) {
+        prefix = currentCommand.substring(0, paramStart).trim();
+      } else {
+        prefix = currentCommand.trim();
+      }
+
+      const paramCommands = Array.from(this.parameters.entries())
+        .map(([key, value]) => `--${key}=${value}`)
+        .join(' ');
+
+      this.commandInput.value = prefix
+        ? `${prefix} ${paramCommands}`
+        : paramCommands;
+    }
+  }
+
   updateResourceOptions(imageData, computeData) {
-    // Update resource type options
+    // 리소스 타입 옵션 업데이트
     const resourceTypeSelect = this.node.querySelector('#resourceType');
     if (resourceTypeSelect && computeData?.types) {
       resourceTypeSelect.innerHTML = '<option value="">자원 종류</option>';
@@ -450,11 +516,10 @@ class ContentWidget extends Widget {
       });
     }
 
+    // 환경 타입 옵션 업데이트
     const envTypeSelect = this.node.querySelector('#envType');
     if (envTypeSelect && imageData?.images) {
-      const processors = [
-        ...new Set(imageData.images.map(img => img.processor))
-      ];
+      const processors = [...new Set(imageData.images.map(img => img.processor))];
       envTypeSelect.innerHTML = '<option value="">환경 선택</option>';
       processors.forEach(processor => {
         const option = document.createElement('option');
@@ -496,25 +561,9 @@ class ContentWidget extends Widget {
   }
 
   async handleSubmit() {
-    const formData = {
-      groupName: this.node.querySelector('#groupName').value,
-      taskName: this.node.querySelector('#taskName').value,
-      taskDescription: this.node.querySelector('#taskDescription').value,
-      selectedFile: this.currentPath,
-      envSet: this.node.querySelector('input[name="envSet"]:checked').value,
-      envType: this.node.querySelector('#envType').value,
-      envDetail: this.node.querySelector('#envDetail').value,
-      resourceType: this.node.querySelector('#resourceType').value,
-      resourceDetail: this.node.querySelector('#resourceDetail').value,
-      parameters: Array.from(this.parameters.entries()).map(([key, value]) => ({
-        key,
-        value
-      })),
-      command: this.node.querySelector('#command').value
-    };
+    this.saveFormData();
 
-    const validationError = this.api.validateForm(formData);
-
+    const validationError = this.api.validateForm(this.formData);
     if (validationError) {
       await showDialog({
         title: '입력 오류',
@@ -525,7 +574,7 @@ class ContentWidget extends Widget {
     }
 
     try {
-      await this.api.createTask(formData);
+      await this.api.createTask(this.formData);
       await showDialog({
         title: '성공',
         body: '작업이 성공적으로 등록되었습니다.',
@@ -542,6 +591,7 @@ class ContentWidget extends Widget {
   }
 
   resetForm() {
+    // 폼 필드 초기화
     const elements = {
       taskName: '',
       taskDescription: '',
@@ -553,123 +603,118 @@ class ContentWidget extends Widget {
       envDetail: ''
     };
 
-    for (const [id, value] of Object.entries(elements)) {
+    Object.entries(elements).forEach(([id, value]) => {
       const element = this.node.querySelector(`#${id}`);
-      if (element) {
-        element.value = value;
-      }
-    }
+      if (element) element.value = value;
+    });
 
+    // 파라미터 테이블 초기화
     const paramTableBody = this.node.querySelector('#paramTableBody');
-    if (paramTableBody) {
-      paramTableBody.innerHTML = '';
-    }
+    if (paramTableBody) paramTableBody.innerHTML = '';
     this.parameters.clear();
 
+    // 환경 설정 초기화
     const predefinedRadio = this.node.querySelector(
       'input[name="envSet"][value="predefined"]'
     );
-    if (predefinedRadio) {
-      predefinedRadio.checked = true;
-    }
+    if (predefinedRadio) predefinedRadio.checked = true;
 
     const envSelectors = this.node.querySelector('#envSelectors');
-    if (envSelectors) {
-      envSelectors.style.display = 'none';
-    }
+    if (envSelectors) envSelectors.style.display = 'none';
+
+    // formData 초기화
+    this.formData = { ...defaultData };
   }
 
   async updateFilePath(path) {
     this.currentPath = path;
     const pathDisplay = this.node.querySelector('.current-path');
-    const paramSection = this.node.querySelector('.param-section');
-    const commandSection = this.node.querySelector('.command-section');
-
-    const notebookId = this.extractNotebookId(path);
-    if (notebookId) {
-      await this.updateNotebookData(notebookId);
-    }
-
     if (pathDisplay) {
       pathDisplay.textContent = `현재 열린 파일: ${this.currentPath}`;
     }
 
+    this.formData.outputPath = path;
+    this.toggleSections(path);
+  }
+
+  toggleSections(path) {
+    const paramSection = this.node.querySelector('.param-section');
+    const commandSection = this.node.querySelector('.command-section');
     const isNotebook = path.endsWith('.ipynb');
 
     if (isNotebook) {
-      // 노트북 파일일 때: 현재 상태 저장 후 숨기기
-      if (!this.savedState) {
-        this.savedState = {
-          parameters: new Map(this.parameters),
-          command: this.commandInput?.value || ''
-        };
-      }
-
-      // 파라미터와 명령어 섹션 숨기기
       if (paramSection) paramSection.style.display = 'none';
       if (commandSection) commandSection.style.display = 'none';
-
-      // 값 초기화
+      this.commandInput.value = '';
       this.parameters.clear();
-      if (this.commandInput) {
-        this.commandInput.value = '';
-      }
       this.updateParamTable();
     } else {
-      // 일반 파일일 때: 저장된 상태 복원
       if (paramSection) paramSection.style.display = 'block';
       if (commandSection) commandSection.style.display = 'block';
+    }
+  }
 
-      if (this.savedState) {
-        // 저장된 상태 복원
-        this.parameters = new Map(this.savedState.parameters);
-        if (this.commandInput) {
-          this.commandInput.value = this.savedState.command;
+  restoreFormData() {
+    // formData 복원
+    Object.entries(this.formData).forEach(([key, value]) => {
+      const element = this.node.querySelector(`#${key}`);
+      if (element) {
+        if (element.tagName === 'SELECT') {
+          element.value = value;
+        } else if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+          element.value = value;
         }
-        this.updateParamTable();
-        this.savedState = null; // 복원 후 저장된 상태 초기화
       }
-    }
-  }
+    });
 
-  updateParamTable() {
-    const paramTableBody = this.node.querySelector('#paramTableBody');
-    if (paramTableBody) {
-      paramTableBody.innerHTML = '';
-
-      this.parameters.forEach((value, key) => {
-        const row = paramTableBody.insertRow();
-        row.innerHTML = `
-          <td>${key}</td>
-          <td>
-            <input type="text" class="param-value-input" value="${value}" />
-          </td>
-          <td class="param-row-action">
-            <button class="btn btn-small btn-danger">삭제</button>
-          </td>
-        `;
-
-        // 값 수정 이벤트 처리
-        const valueInput = row.querySelector('.param-value-input');
-        valueInput?.addEventListener('change', e => {
-          this.parameters.set(key, e.target.value.trim());
-          this.updateCommand();
-        });
-
-        // 삭제 버튼 이벤트 처리
-        const deleteBtn = row.querySelector('.btn-danger');
-        deleteBtn?.addEventListener('click', () => {
-          this.parameters.delete(key);
-          row.remove();
-          this.updateCommand();
-        });
+    // 파라미터 복원
+    if (this.formData.runParameters?.length > 0) {
+      this.formData.runParameters.forEach(param => {
+        this.parameters.set(param.key, param.value);
       });
+      this.updateParamTable();
     }
   }
 
-  getCurrentPath() {
-    return this.currentPath;
-  }
+  saveFormData() {
+    // 현재 폼 데이터 저장
+    const formElements = {
+      taskName: 'name',
+      taskDescription: 'description',
+      groupName: 'experimentId',
+      resourceType: 'resourceType',
+      resourceDetail: 'resourceDetail',
+      command: 'executionCommand',
+      envType: 'envType',
+      envDetail: 'envDetail'
+    };
+
+    Object.entries(formElements).forEach(([elementId, dataKey]) => {
+      const element = this.node.querySelector(`#${elementId}`);
+      if (element) {
+        this.formData[dataKey] = element.value;
+      }
+    });
+
+    // resourceDetail이 선택되었을 때 resourceName 설정
+    const resourceDetailSelect = this.node.querySelector('#resourceDetail');
+    if (resourceDetailSelect && resourceDetailSelect.value) {
+      const selectedOption = resourceDetailSelect.options[resourceDetailSelect.selectedIndex];
+      this.formData.resourceName = selectedOption.textContent;
+    }
+
+    // envDetail이 선택되었을 때 imageName 설정
+    const envDetailSelect = this.node.querySelector('#envDetail');
+    if (envDetailSelect && envDetailSelect.value) {
+      const selectedOption = envDetailSelect.options[envDetailSelect.selectedIndex];
+      this.formData.imageName = selectedOption.textContent;
+    }
+
+    // 파라미터 저장
+    this.formData.runParameters = Array.from(this.parameters.entries()).map(
+      ([key, value]) => ({ key, value })
+    );
+}
 }
 
 class SchedulerWidget extends Widget {
@@ -677,6 +722,7 @@ class SchedulerWidget extends Widget {
     super();
     this.addClass('jp-scheduler-widget');
     this.id = 'scheduler-widget';
+    this.title.label = '스케줄러 등록';
 
     this.content = new ContentWidget(app);
     this.node.appendChild(this.content.node);
@@ -690,24 +736,21 @@ class SchedulerWidget extends Widget {
 class SchedulerStatusWidget extends Widget {
   constructor(app) {
     super();
-    this.addClass('jp-scheduler-new-widget');
-    this.id = 'scheduler-new-widget';
+    this.addClass('jp-scheduler-status-widget');
+    this.id = 'scheduler-status-widget';
     this.title.label = '스케줄러 이력';
     this.api = new SchedulerAPI();
 
-    // HTML 템플릿 적용
     this.node.innerHTML = schedulerStatusTemplate;
 
-    // 초기화 및 이벤트 핸들러 설정
     this.initializeContent();
     this.startPeriodicRefresh();
   }
 
   initializeContent() {
-    // 테이블 초기화 및 기본 설정
     const taskList = this.node.querySelector('#taskList');
     if (taskList) {
-      this.updateTaskList([]); // 빈 목록으로 초기화
+      this.updateTaskList([]);
     }
   }
 
@@ -720,22 +763,14 @@ class SchedulerStatusWidget extends Widget {
     if (!Array.isArray(tasks) || tasks.length === 0) {
       const emptyRow = document.createElement('tr');
       emptyRow.innerHTML =
-        '<td colspan="2" style="text-align: center;">No tasks found</td>';
+        '<td colspan="2" style="text-align: center;">작업이 없습니다</td>';
       taskList.appendChild(emptyRow);
       return;
     }
 
-    // 최근 순으로 정렬하고 20개만 표시
     const recentTasks = [...tasks]
       .filter(task => task && task.createdAt)
-      .sort((a, b) => {
-        try {
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        } catch (e) {
-          console.error('Date parsing error:', e);
-          return 0;
-        }
-      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 20);
 
     recentTasks.forEach(task => {
@@ -766,23 +801,19 @@ class SchedulerStatusWidget extends Widget {
   }
 
   getStatusIcon(status) {
-    switch (status) {
-      case 'running':
-        return `<svg class="icon spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="12" cy="12" r="10" stroke-width="4" stroke-dasharray="30 30" />
-          </svg>`;
-      case 'error':
-      case 'failed':
-        return `<span style="font-size: 16px;">🔴</span>`;
-      case 'success':
-        return `<span style="font-size: 16px;">🟢</span>`;
-      default:
-        return '⚪';
-    }
+    const icons = {
+      running: `<svg class="icon spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <circle cx="12" cy="12" r="10" stroke-width="4" stroke-dasharray="30 30" />
+                </svg>`,
+      error: '🔴',
+      failed: '🔴',
+      success: '🟢',
+      default: '⚪'
+    };
+    return icons[status] || icons.default;
   }
 
   openTaskDetail(task) {
-    // task detail 페이지 열기
     const params = new URLSearchParams({
       executableId: task.executableId,
       assetId: task.executable.assetId
@@ -793,12 +824,10 @@ class SchedulerStatusWidget extends Widget {
 
   async fetchTasks() {
     try {
-      // 현재 날짜와 1달 전 날짜 계산
       const endDate = new Date();
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 1);
 
-      // yyyy.MM.dd 형식으로 날짜 포맷팅
       const formatDate = date => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -828,7 +857,12 @@ class SchedulerPanel extends SidePanel {
   constructor(app) {
     super();
     this.addClass('jp-SchedulerPanel');
-    this.title.icon = playIcon;
+    this.title.icon = new LabIcon({ 
+      name: 'scheduler:play',
+      svgstr: `<svg xmlns="http://www.w3.org/2000/svg" width="16" viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7z"/>
+      </svg>`
+    });
     this.title.caption = '스케줄러';
     this.id = 'scheduler-panel';
 
@@ -846,22 +880,24 @@ class SchedulerPanel extends SidePanel {
   }
 }
 
+/**
+ * Jupyter Lab 플러그인 설정
+ */
 const plugin = {
   id: 'scheduler-jupyter-extension:plugin',
   description: 'A JupyterLab extension for scheduling.',
   autoStart: true,
   requires: [ICommandPalette, IFileBrowserFactory],
-  activate: (app, palette, fileBrowser) => {
-    console.log(
-      'JupyterLab extension scheduler-jupyter-extension is activated!'
-    );
+  activate: function(app, palette, fileBrowser) {
+    console.log('JupyterLab extension scheduler-jupyter-extension is activated!');
 
+    // 패널 생성
     const panel = new SchedulerPanel(app);
 
+    // 커맨드 등록
     const command = 'scheduler:toggle';
     app.commands.addCommand(command, {
       label: 'Toggle Scheduler',
-      icon: playIcon,
       execute: () => {
         if (!panel.isAttached) {
           app.shell.add(panel, 'left');
@@ -870,57 +906,37 @@ const plugin = {
       }
     });
 
+    // 팔레트에 커맨드 추가
     palette.addItem({
       command,
       category: 'Scheduler'
     });
 
+    // 패널을 왼쪽 사이드바에 추가
     app.shell.add(panel, 'left', { rank: 200 });
 
-    // 툴바 버튼 생성
-    const toolbarButton = new Widget();
-    toolbarButton.id = 'scheduler-toolbar-button';
-    toolbarButton.addClass('jp-ToolbarButton');
-    toolbarButton.hide();
-
-    const button = document.createElement('button');
-    button.className = 'jp-ToolbarButtonComponent';
-    button.onclick = () => {
-      app.commands.execute(command);
-    };
-
-    const icon = document.createElement('div');
-    playIcon.element({
-      container: icon,
-      tag: 'span',
-      elementPosition: 'center'
-    });
-
-    button.appendChild(icon);
-    toolbarButton.node.appendChild(button);
-    app.shell.add(toolbarButton, 'top', { rank: 1000 });
-
-    // 현재 파일에 따른 버튼 가시성 업데이트
-    const updateButtonVisibility = widget => {
-      if (widget instanceof DocumentWidget) {
-        const path = widget.context.path;
+    // 활성 위젯 변경 이벤트 리스너 
+    app.shell.currentChanged.connect((_, change) => {
+      if (change.newValue instanceof DocumentWidget) {
+        const path = change.newValue.context.path;
         const isValidFile = path.endsWith('.py') || path.endsWith('.ipynb');
-        if (isValidFile) {
-          toolbarButton.show();
-        } else {
-          toolbarButton.hide();
-        }
-        if (path) {
+        
+        if (path && isValidFile) {
           panel.updateFilePath(path);
         }
-      } else {
-        toolbarButton.hide();
       }
-    };
+    });
 
-    // 활성 위젯 변경 이벤트 리스너
-    app.shell.currentChanged.connect((_, change) => {
-      updateButtonVisibility(change.newValue);
+    // 파일 브라우저 선택 변경 이벤트 리스너
+    fileBrowser.defaultBrowser.selectionChanged.connect((_, selection) => {
+      if (selection.first) {
+        const item = selection.first;
+        const isValidFile = item.path.endsWith('.py') || item.path.endsWith('.ipynb');
+        
+        if (isValidFile) {
+          panel.updateFilePath(item.path);
+        }
+      }
     });
   }
 };
