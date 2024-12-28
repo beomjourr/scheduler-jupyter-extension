@@ -713,18 +713,12 @@ class ContentWidget extends Widget {
   }
 
   toggleSections(path) {
-    const paramSection = this.node.querySelector('.param-section');
-    const commandSection = this.node.querySelector('.command-section');
+    const commandSection = this.node.querySelector('#commandSection');
     const isNotebook = path.endsWith('.ipynb');
-
+  
     if (isNotebook) {
-      if (paramSection) paramSection.style.display = 'none';
       if (commandSection) commandSection.style.display = 'none';
-      this.commandInput.value = '';
-      this.parameters.clear();
-      this.updateParamTable();
     } else {
-      if (paramSection) paramSection.style.display = 'block';
       if (commandSection) commandSection.style.display = 'block';
     }
   }
@@ -767,7 +761,11 @@ class ContentWidget extends Widget {
     Object.entries(formElements).forEach(([elementId, dataKey]) => {
       const element = this.node.querySelector(`#${elementId}`);
       if (element) {
-        this.formData[dataKey] = element.value;
+        if (this.currentPath?.endsWith('.ipynb') && elementId === 'command') {
+          this.formData.executionCommand = '';  // ipynb 파일인 경우 executionCommand를 빈 문자열로 설정
+        } else {
+          this.formData[dataKey] = element.value;
+        }
       }
     });
 
