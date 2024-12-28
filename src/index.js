@@ -17,7 +17,7 @@ import axios from 'axios';
 
 // API 설정
 const API_CONFIG = {
-  baseURL: 'http://localhost:3004',
+  baseURL: 'https://api.namu.dev.samsungdisplay.net:32443',
   computeResourcesBaseURL: 'http://localhost:3004',
   endpoints: {
     taskGroups: '/extension/scheduler/experiments/users/${userId}',
