@@ -3,6 +3,8 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 
+import { ServerConnection } from '@jupyterlab/services';
+
 import { Widget } from '@lumino/widgets';
 import { ICommandPalette, Dialog, showDialog } from '@jupyterlab/apputils';
 import { IFileBrowserFactory } from '@jupyterlab/filebrowser';
@@ -44,11 +46,14 @@ class SchedulerAPI {
 
   getUserId() {
     try {
+      const settings = ServerConnection.makeSettings();
+      console.log('Server URL:', settings);
       const url = window.location.href;
       const match = url.match(/\/notebook\/([^/]+)\/notebook-/);
       if (match && match[1]) {
         return match[1].replace('-', '.');
       }
+      console.log('찾기 실패 window.location.href', window.location.href);
       return "beomjourr.park";
     } catch (error) {
       console.error("Error extracting user ID:", error);
