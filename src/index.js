@@ -19,13 +19,13 @@ import { mockResponse } from './mockData';
 // API 설정
 const API_CONFIG = {
   baseURL: 'https://api.namu.dev.samsungdisplay.net:32443',
-  computeResourcesBaseURL: 'http://localhost:3004',
+  computeResourcesBaseURL: 'http://aidev.samsungdisplay.net',
   endpoints: {
     taskGroups: '/extension/scheduler/experiments/users/${userId}',
     images: '/extension/images/users/${userId}',
     computeResources: '/resources',
-    createTask: '/tasks',
-    tasks: '/scheduler/runs/users/${userId}',
+    createTask: '/extension/scheduler/runs',
+    tasks: '/extension/notebooks/${notebookId}/runs',
     notebookDetail: '/extension/notebooks/${notebookId}/detail'
   }
 };
