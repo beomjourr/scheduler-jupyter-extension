@@ -18,8 +18,8 @@ import { mockResponse } from './mockData';
 
 // API 설정
 const API_CONFIG = {
-  baseURL: 'https://api.namu.dev.samsungdisplay.net:32443',
-  computeResourcesBaseURL: 'http://aidev.samsungdisplay.net',
+  baseURL: 'http://localhost:3004',
+  computeResourcesBaseURL: 'http://localhost:3004',
   endpoints: {
     taskGroups: '/extension/scheduler/experiments/users/${userId}',
     images: '/extension/images/users/${userId}',
@@ -43,9 +43,16 @@ class SchedulerAPI {
   }
 
   getUserId() {
-    console.log('process.env', process.env);
-    if (process.env.userId) {
-      return process.env.userId;
+    try {
+      const url = window.location.href;
+      const match = url.match(/\/notebook\/([^/]+)\/notebook-/);
+      if (match && match[1]) {
+        return match[1].replace('-', '.');
+      }
+      return "beomjourr.park";
+    } catch (error) {
+      console.error("Error extracting user ID:", error);
+      return null;
     }
   }
 
@@ -273,16 +280,12 @@ class SchedulerAPI {
 
   extractNotebookId() {
     try {
-      if (process.env.NB_PREFIX) {
-        const nbPrefix = process.env.NB_PREFIX;
-        if (nbPrefix) {
-          const lastPart = nbPrefix.split("/").pop() || "";
-          const notebookId = lastPart.match(/\d+/)[0];
-          console.log("notebookId", notebookId);
-          return notebookId;
-        }
+      const url = window.location.href;
+      const match = url.match(/\/notebook-(\d+)\//);
+      if (match && match[1]) {
+        return match[1];
       }
-      return null;
+      return "1895";
     } catch (error) {
       console.error("Error extracting notebook ID:", error);
       return null;
@@ -293,7 +296,6 @@ class SchedulerAPI {
     const requiredFields = {
       name: '작업명',
       exeFilePath: '실행 파일',
-      imageName: '개발환경세트',
       resourceName: '연산 필요 자원',
     };
 
@@ -302,7 +304,13 @@ class SchedulerAPI {
         return `${label}을(를) 입력해주세요.`;
       }
     }
-
+  
+    // 개발환경세트는 새로운 환경 구성일 때만 필수
+    const envSet = document.querySelector('input[name="envSet"]:checked')?.value;
+    if (envSet === 'custom' && !formData.imageName) {
+      return '개발환경세트를 입력해주세요.';
+    }
+  
     return null;
   }
 }
