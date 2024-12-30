@@ -14,6 +14,7 @@ import { schedulerStatusTemplate } from './templates/scheduler-status';
 import '../style/index.css';
 
 import axios from 'axios';
+import { mockResponse } from './mockData';
 
 // API 설정
 const API_CONFIG = {
@@ -46,6 +47,7 @@ class SchedulerAPI {
     if (process.env.userId) {
       return process.env.userId;
     }
+    return "user123"
   }
 
   getUrlWithUserId(endpoint) {
@@ -59,12 +61,17 @@ class SchedulerAPI {
   // Resource 관련 메서드
   getResourceDetails(typeId, resourceId) {
     if (!this.computeResourceData?.details?.[typeId]) return null;
-    return this.computeResourceData.details[typeId].find(detail => detail.id === resourceId);
+    return this.computeResourceData.details[typeId].find(detail => detail.name === resourceId);
   }
 
 
   setResourceInfo(formData, resourceType, resourceDetail) {
-    const resourceInfo = this.getResourceDetails(resourceType, resourceDetail);
+    if (!this.computeResourceData?.details?.[resourceType]) return formData;
+    
+    const resourceInfo = this.computeResourceData.details[resourceType].find(
+      detail => detail.name === resourceDetail
+    );
+
     if (resourceInfo) {
       return {
         ...formData,
@@ -126,32 +133,33 @@ class SchedulerAPI {
 
   async fetchComputeResourceData() {
     try {
-      const response = await axios.get(
-        `${API_CONFIG.computeResourcesBaseURL}${API_CONFIG.endpoints.computeResources}`
-      );
+      // const response = await axios.get(
+      //   `${API_CONFIG.computeResourcesBaseURL}${API_CONFIG.endpoints.computeResources}`
+      // );
 
+      const response = mockResponse;
+      
       const resourceItems = response.data[0]?.children?.[0]?.children?.[0]?.children || [];
       const cpuOnlyResources = [];
       const cpuGpuResources = [];
-
+  
       resourceItems.forEach((item) => {
         const resourceValues = this.extractResourceValues(item.contents.codeValue);
         const resourceItem = {
-          id: item.id,
           name: item.contents.messageDefault,
           cpu: resourceValues.cpu,
           memory: resourceValues.memory,
           gpu: resourceValues.gpu,
           gpuType: "",
         };
-
+  
         if (parseInt(resourceValues.gpu) > 0) {
           cpuGpuResources.push(resourceItem);
         } else {
           cpuOnlyResources.push(resourceItem);
         }
       });
-
+  
       const formattedData = {
         types: [
           { id: "cpu", name: "CPU" },
@@ -160,11 +168,10 @@ class SchedulerAPI {
         details: {
           cpu: cpuOnlyResources,
           cpu_gpu: cpuGpuResources,
-        },
+        }
       };
-
-      this.computeResourceData = formattedData;  // 클래스 변수에 저장
-      console.log('fetchComputeResourceData formatted', formattedData);
+  
+      this.computeResourceData = formattedData;
       return formattedData;
     } catch (error) {
       console.error('Failed to fetch compute resource data:', error);
@@ -238,7 +245,6 @@ class SchedulerAPI {
         taskGroups,
         imageData,
         computeResourceData,
-        notebookDetail,
       };
     } catch (error) {
       console.error('Failed to initialize data:', error);
@@ -353,7 +359,7 @@ class ContentWidget extends Widget {
         await this.api.initializeData();
   
       this.updateTaskGroups(taskGroups);
-      this.updateResourceOptions(imageData, computeResourceData);
+      this.updateResourceOptions(computeResourceData);
   
       const notebookId = this.api.extractNotebookId();
       console.log("notebookId", notebookId);
@@ -432,10 +438,17 @@ class ContentWidget extends Widget {
     });
 
     const resourceTypeSelect = this.node.querySelector('#resourceType');
-    resourceTypeSelect?.addEventListener('change', e => {
-      this.updateResourceDetailOptions(e.target.value);
-      this.formData.resourceType = e.target.value;
-    });
+    if (resourceTypeSelect) {
+      resourceTypeSelect.addEventListener('change', e => {
+        const selectedType = e.target.value;
+        console.log('Resource type changed:', selectedType);
+        
+        if (selectedType) {
+          this.updateResourceDetailOptions(selectedType);
+          this.formData.resourceType = selectedType;
+        }
+      });
+    }
 
     // 파라미터 관련 이벤트
     this.initializeParameterHandlers();
@@ -598,8 +611,7 @@ class ContentWidget extends Widget {
     }
   }
 
-  updateResourceOptions(imageData, computeData) {
-    // 리소스 타입 옵션 업데이트
+  updateResourceOptions(computeData) {
     const resourceTypeSelect = this.node.querySelector('#resourceType');
     if (resourceTypeSelect && computeData?.types) {
       resourceTypeSelect.innerHTML = '<option value="">자원 종류</option>';
@@ -610,24 +622,13 @@ class ContentWidget extends Widget {
         resourceTypeSelect.appendChild(option);
       });
     }
-
-    // 환경 타입 옵션 업데이트
-    const envTypeSelect = this.node.querySelector('#envType');
-    if (envTypeSelect && imageData?.images) {
-      const processors = [...new Set(imageData.images.map(img => img.processor))];
-      envTypeSelect.innerHTML = '<option value="">환경 선택</option>';
-      processors.forEach(processor => {
-        const option = document.createElement('option');
-        option.value = processor;
-        option.textContent = processor;
-        envTypeSelect.appendChild(option);
-      });
-    }
   }
 
   updateEnvDetailOptions(processor) {
     const envDetailSelect = this.node.querySelector('#envDetail');
     if (!envDetailSelect) return;
+
+    console.log('updateEnvDetailOptions',processor)
   
     envDetailSelect.innerHTML = '<option value="">세부 내용 선택</option>';
     const filteredImages = this.api.imageData?.images.filter(
@@ -645,14 +646,14 @@ class ContentWidget extends Widget {
   updateResourceDetailOptions(typeId) {
     const resourceDetailSelect = this.node.querySelector('#resourceDetail');
     if (!resourceDetailSelect) return;
-
+  
     resourceDetailSelect.innerHTML = '<option value="">세부 자원</option>';
+    
     const details = this.api.getResourceDetailsList(typeId);
-
     details.forEach(detail => {
       const option = document.createElement('option');
-      option.value = detail.id;
-      option.textContent = detail.name;
+      option.value = detail.name;
+      option.textContent = `${detail.name} (CPU: ${detail.cpu}, Memory: ${detail.memory}${detail.gpu > 0 ? `, GPU: ${detail.gpu}` : ''})`;
       resourceDetailSelect.appendChild(option);
     });
   }
