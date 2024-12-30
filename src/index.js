@@ -345,6 +345,7 @@ class ContentWidget extends Widget {
     this.parameters = new Map();
     this.formData = { ...defaultData };
     this.notebookEnvData = null;
+    this.imageData = null;
 
     this.node.innerHTML = schedulerTemplate;
     this.commandInput = this.node.querySelector('#command');
@@ -360,6 +361,11 @@ class ContentWidget extends Widget {
   
       this.updateTaskGroups(taskGroups);
       this.updateResourceOptions(computeResourceData);
+      
+      if (imageData) {
+        this.imageData = imageData;
+        this.updateEnvTypeOptions();
+      }
   
       const notebookId = this.api.extractNotebookId();
       console.log("notebookId", notebookId);
@@ -392,6 +398,44 @@ class ContentWidget extends Widget {
     }
   }
 
+  updateEnvTypeOptions() {
+    const envTypeSelect = this.node.querySelector('#envType');
+    const envDetailSelect = this.node.querySelector('#envDetail');
+    
+    if (!envTypeSelect || !this.imageData?.images) return;
+    
+    envTypeSelect.innerHTML = '<option value="">환경 선택</option>';
+    envDetailSelect.innerHTML = '<option value="">세부 내용 선택</option>';
+    
+    const filteredImages = this.imageData.images.filter(img => img.state === "PUSHED");
+    const processors = [...new Set(filteredImages.map(img => img.processor))];
+    
+    processors.forEach(processor => {
+      const option = document.createElement('option');
+      option.value = processor;
+      option.textContent = processor;
+      envTypeSelect.appendChild(option);
+    });
+  }
+
+  updateEnvDetailOptions(processor) {
+    const envDetailSelect = this.node.querySelector('#envDetail');
+    if (!envDetailSelect || !this.imageData?.images) return;
+
+    envDetailSelect.innerHTML = '<option value="">세부 내용 선택</option>';
+    
+    const filteredImages = this.imageData.images.filter(
+      img => img.state === "PUSHED" && img.processor === processor
+    );
+
+    filteredImages.forEach(image => {
+      const option = document.createElement('option');
+      option.value = image.id;
+      option.textContent = image.displayName || image.name;
+      envDetailSelect.appendChild(option);
+    });
+  }
+
   initializeEventHandlers() {
     // 파일 선택 버튼
     const fileSelectBtn = this.node.querySelector('#fileSelectBtn');
@@ -417,13 +461,16 @@ class ContentWidget extends Widget {
         const envDetail = this.node.querySelector('#envDetail');
         
         if (e.target.value === 'custom') {
-          if (envSelectors) envSelectors.style.display = 'block';
-          if (envType) envType.style.display = 'block';
-          if (envDetail) envDetail.style.display = 'block';
+          if (envSelectors) {
+            envSelectors.style.display = 'block';
+            this.updateEnvTypeOptions();
+          }
         } else {
           if (envSelectors) envSelectors.style.display = 'none';
-          if (envType) envType.style.display = 'none';
-          if (envDetail) envDetail.style.display = 'none';
+          if (this.notebookEnvData) {
+            this.formData.envType = this.notebookEnvData.processor;
+            this.formData.envDetail = this.notebookEnvData.imageId;
+          }
         }
         
         this.formData.envSet = e.target.value;
@@ -432,17 +479,27 @@ class ContentWidget extends Widget {
 
     // 드롭다운 이벤트
     const envTypeSelect = this.node.querySelector('#envType');
-    envTypeSelect?.addEventListener('change', e => {
-      this.updateEnvDetailOptions(e.target.value);
-      this.formData.envType = e.target.value;
-    });
+    if (envTypeSelect) {
+      envTypeSelect.addEventListener('change', e => {
+        const selectedProcessor = e.target.value;
+        if (selectedProcessor) {
+          this.updateEnvDetailOptions(selectedProcessor);
+        }
+        this.formData.envType = selectedProcessor;
+      });
+    }
+
+    const envDetailSelect = this.node.querySelector('#envDetail');
+    if (envDetailSelect) {
+      envDetailSelect.addEventListener('change', e => {
+        this.formData.envDetail = e.target.value;
+      });
+    }
 
     const resourceTypeSelect = this.node.querySelector('#resourceType');
     if (resourceTypeSelect) {
       resourceTypeSelect.addEventListener('change', e => {
         const selectedType = e.target.value;
-        console.log('Resource type changed:', selectedType);
-        
         if (selectedType) {
           this.updateResourceDetailOptions(selectedType);
           this.formData.resourceType = selectedType;
@@ -518,7 +575,7 @@ class ContentWidget extends Widget {
         this.formData.envDetail = notebook.image.id;
         this.formData.namespace = notebook.namespace;
       }
-      
+
       this.saveFormData();
     }
   }
@@ -624,25 +681,6 @@ class ContentWidget extends Widget {
     }
   }
 
-  updateEnvDetailOptions(processor) {
-    const envDetailSelect = this.node.querySelector('#envDetail');
-    if (!envDetailSelect) return;
-
-    console.log('updateEnvDetailOptions',processor)
-  
-    envDetailSelect.innerHTML = '<option value="">세부 내용 선택</option>';
-    const filteredImages = this.api.imageData?.images.filter(
-      img => img.processor === processor
-    ) || [];
-  
-    filteredImages.forEach(image => {
-      const option = document.createElement('option');
-      option.value = image.id;
-      option.textContent = image.displayName || image.name;
-      envDetailSelect.appendChild(option);
-    });
-  }
-
   updateResourceDetailOptions(typeId) {
     const resourceDetailSelect = this.node.querySelector('#resourceDetail');
     if (!resourceDetailSelect) return;
@@ -659,8 +697,6 @@ class ContentWidget extends Widget {
   }
 
   async handleSubmit() {
-    this.saveFormData();
-
     const validationError = this.api.validateForm(this.formData);
     if (validationError) {
       await showDialog({
@@ -689,7 +725,6 @@ class ContentWidget extends Widget {
   }
 
   resetForm() {
-    // 폼 필드 초기화
     const elements = {
       taskName: '',
       taskDescription: '',
@@ -793,25 +828,29 @@ class ContentWidget extends Widget {
     });
 
     // 환경 설정 처리
-    const envSet = document.querySelector('input[name="envSet"]:checked').value;
-    this.formData.envSet = envSet;
+    const envSet = document.querySelector('input[name="envSet"]:checked')?.value;
+    if (envSet) {
+      this.formData.envSet = envSet;
 
-    if (envSet === "predefined") {
-      // 기존 자원 활용인 경우
-      if (this.notebookEnvData?.image) {
-        this.formData.imageName = this.notebookEnvData.image.name;
-        this.formData.isSharedAsset = this.notebookEnvData.image.isPublic;
-        this.formData.envType = this.notebookEnvData.processor;
-        this.formData.envDetail = this.notebookEnvData.imageId;
-      }
-    } else {
-      // 새로운 환경 구성인 경우
-      const envDetail = this.node.querySelector('#envDetail')?.value;
-      if (envDetail) {
-        const imageInfo = this.api.getImageDetails(envDetail);
-        if (imageInfo) {
-          this.formData.imageName = imageInfo.name;
-          this.formData.isSharedAsset = imageInfo.isPublic || false;
+      if (envSet === "predefined") {
+        // 기존 자원 활용인 경우
+        if (this.notebookEnvData?.image) {
+          this.formData.imageName = this.notebookEnvData.image.name;
+          this.formData.isSharedAsset = this.notebookEnvData.image.isPublic;
+          this.formData.envType = this.notebookEnvData.processor;
+          this.formData.envDetail = this.notebookEnvData.imageId;
+        }
+      } else {
+        // 새로운 환경 구성인 경우
+        const envDetail = this.node.querySelector('#envDetail')?.value;
+        console.log('imageInfo', imageData)
+        if (envDetail && this.imageData) {
+          const imageInfo = this.imageData.images.find(img => img.id === envDetail);
+
+          if (imageInfo) {
+            this.formData.imageName = imageInfo.name;
+            this.formData.isSharedAsset = imageInfo.isPublic || false;
+          }
         }
       }
     }
@@ -820,7 +859,6 @@ class ContentWidget extends Widget {
     const resourceType = this.node.querySelector('#resourceType')?.value;
     const resourceDetail = this.node.querySelector('#resourceDetail')?.value;
     if (resourceType && resourceDetail) {
-      // setResourceInfo 메서드 호출하여 리소스 관련 필드 설정
       this.formData = this.api.setResourceInfo(
         this.formData,
         resourceType,
@@ -828,10 +866,11 @@ class ContentWidget extends Widget {
       );
     }
 
-    // 파라미터 및 namespace 처리
+    // 파라미터 처리
     this.formData.runParameters = Array.from(this.parameters.entries()).map(
       ([key, value]) => ({ key, value })
     );
+
     // namespace 설정
     this.formData.namespace = this.formData.namespace || "";
   }
