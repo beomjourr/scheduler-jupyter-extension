@@ -635,7 +635,7 @@ class ContentWidget extends Widget {
     // 실행 파일 경로
     if (this.currentPath && this.currentPath !== '파일이 선택되지 않았습니다') {
       this.formData.exeFilePath = this.currentPath;
-      this.formData.codeType = this.currentPath.endsWith('.ipynb') ? 'NOTEBOOK' : 'PYTHON';
+      this.formData.codeType = this.currentPath.endsWith('.ipynb') ? 'CODE' : 'PYTHON';
     }
 
     // 실행 명령어
@@ -747,7 +747,7 @@ class ContentWidget extends Widget {
     }
 
     this.formData.exeFilePath = path;
-    this.formData.codeType = path.endsWith('.ipynb') ? 'NOTEBOOK' : 'PYTHON';
+    this.formData.codeType = path.endsWith('.ipynb') ? 'CODE' : 'PYTHON';
     this.toggleSections(path);
   }
 
