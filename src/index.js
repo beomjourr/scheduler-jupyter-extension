@@ -854,7 +854,7 @@ class SchedulerWidget extends Widget {
     super();
     this.addClass('jp-scheduler-widget');
     this.id = 'scheduler-widget';
-    this.title.label = '스케줄러 등록';
+    this.title.label = '스케줄러 생성';
 
     this.content = new ContentWidget(app);
     this.node.appendChild(this.content.node);
@@ -999,7 +999,7 @@ class SchedulerPanel extends SidePanel {
     this.id = 'scheduler-panel';
 
     this.widget = new SchedulerWidget(app);
-    this.widget.title.label = '스케줄러 등록';
+    this.widget.title.label = '스케줄러 생성';
 
     this.schedulerStatusWidget = new SchedulerStatusWidget(app);
 

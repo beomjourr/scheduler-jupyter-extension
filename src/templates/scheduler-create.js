@@ -31,7 +31,7 @@ export const schedulerTemplate = `
       <div class="group-content">
         <div class="form-row">
           <label class="form-label required">실행 파일</label>
-          <button class="jp-Button jp-mod-styled" id="fileSelectBtn">파일 선택</button>
+          <button class="jp-Button jp-mod-styled" id="fileSelectBtn">파일 경로 선택</button>
           <div class="current-path">
             선택된 파일: <span id="selectedFile">없음</span>
           </div>
@@ -85,8 +85,8 @@ export const schedulerTemplate = `
             <thead>
               <tr>
                 <th>키</th>
-                <th>값</th>
-                <th>작업</th>
+                <th>기본값</th>
+                <th>삭제</th>
               </tr>
             </thead>
             <tbody id="paramTableBody"></tbody>
