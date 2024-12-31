@@ -300,7 +300,7 @@ class SchedulerAPI {
   validateForm(formData) {
     const requiredFields = {
       name: '작업명',
-      exeFilePath: '실행 파일',
+      executionFilePath: '실행 파일',
       resourceName: '연산 필요 자원',
     };
 
@@ -333,7 +333,7 @@ class ContentWidget extends Widget {
       name: "",
       description: "",
       experimentId: null,
-      exeFilePath: "",
+      executionFilePath: "",
       createUserId: "",
       userName: "",
       imageId: null,
@@ -634,7 +634,7 @@ class ContentWidget extends Widget {
 
     // 실행 파일 경로
     if (this.currentPath && this.currentPath !== '파일이 선택되지 않았습니다') {
-      this.formData.exeFilePath = this.currentPath;
+      this.formData.executionFilePath = this.currentPath;
       this.formData.codeType = this.currentPath.endsWith('.ipynb') ? 'CODE' : 'PYTHON';
     }
 
@@ -723,7 +723,7 @@ class ContentWidget extends Widget {
       name: "",
       description: "",
       experimentId: null,
-      exeFilePath: "",
+      executionFilePath: "",
       createUserId: "",
       userName: "",
       imageId: null,
@@ -746,7 +746,7 @@ class ContentWidget extends Widget {
       pathDisplay.textContent = `현재 열린 파일: ${this.currentPath}`;
     }
 
-    this.formData.exeFilePath = path;
+    this.formData.executionFilePath = path;
     this.formData.codeType = path.endsWith('.ipynb') ? 'CODE' : 'PYTHON';
     this.toggleSections(path);
   }
