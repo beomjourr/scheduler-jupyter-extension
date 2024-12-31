@@ -1,7 +1,7 @@
 export const schedulerTemplate = `
   <div class="jp-scheduler-widget">
     <div class="group">
-    <div class="group-header" data-action="toggle">
+    <div class="group-header collapsed" data-action="toggle">
         <span class="collapse-icon">▼</span>
         <div class="group-title">작업 명세</div>
       </div>
