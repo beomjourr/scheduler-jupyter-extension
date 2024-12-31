@@ -32,6 +32,8 @@ const API_CONFIG = {
   }
 };
 
+const SCHEDULER_DETAIL_PAGE_URL = "http//aidev.samsungdisplay.net/#/aipt/namu/schduler/job";
+
 // SSL 인증서 검증 비활성화 (전역 설정)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -205,11 +207,18 @@ class SchedulerAPI {
     }
   }
 
-  async fetchTasks(fromDate, toDate) {
+  async fetchTasks(fromDate) {
     try {
-      const endpoint = this.getUrlWithUserId(
-        `${API_CONFIG.endpoints.tasks}?fromDate=${fromDate}&toDate=${toDate}`
-      );
+      const notebookId = this.extractNotebookId();
+      if (!notebookId) {
+        console.error('Failed to extract notebook ID');
+        return [];
+      }
+        
+      const endpoint = API_CONFIG.endpoints.tasks
+        .replace('${notebookId}', notebookId)
+        + `?fromDate=${fromDate}`;
+        
       const response = await axios.get(`${API_CONFIG.baseURL}${endpoint}`);
       return response.data.data.data;
     } catch (error) {
@@ -390,7 +399,6 @@ class ContentWidget extends Widget {
         envSelectors.style.display = 'none';
       }
 
-      this.restoreFormData();
     } catch (error) {
       console.error('Error initializing content:', error);
     }
@@ -873,10 +881,21 @@ class SchedulerStatusWidget extends Widget {
     this.title.label = '스케줄러 이력';
     this.api = new SchedulerAPI();
 
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 1);
+    this.fromDate = this.formatDate(startDate);
+
     this.node.innerHTML = schedulerStatusTemplate;
 
     this.initializeContent();
     this.startPeriodicRefresh();
+  }
+
+  formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
   }
 
   initializeContent() {
@@ -901,8 +920,6 @@ class SchedulerStatusWidget extends Widget {
     }
 
     const recentTasks = [...tasks]
-      .filter(task => task && task.createdAt)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 20);
 
     recentTasks.forEach(task => {
@@ -933,16 +950,21 @@ class SchedulerStatusWidget extends Widget {
   }
 
   getStatusIcon(status) {
-    const icons = {
-      running: `<svg class="icon spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <circle cx="12" cy="12" r="10" stroke-width="4" stroke-dasharray="30 30" />
-                </svg>`,
-      error: '🔴',
-      failed: '🔴',
-      success: '🟢',
-      default: '⚪'
-    };
-    return icons[status] || icons.default;
+    switch (status) {
+      case "Running":
+      case "Creating":
+      case "Scheduling":
+        return `<svg class="icon spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10" stroke-width="4" stroke-dasharray="30 30" />
+          </svg>`;
+      case "Error":
+      case "Failed":
+        return `<span style="font-size: 16px;">🔴</span>`;
+      case "Succeded":
+        return `<span style="font-size: 16px;">🟢</span>`;
+      default:
+        return "⚪";
+    }
   }
 
   openTaskDetail(task) {
@@ -956,21 +978,8 @@ class SchedulerStatusWidget extends Widget {
 
   async fetchTasks() {
     try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 1);
-
-      const formatDate = date => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}${month}${day}`;
-      };
-
-      const fromDate = formatDate(startDate);
-      const toDate = formatDate(endDate);
-
-      const tasks = await this.api.fetchTasks(fromDate, toDate);
+      const tasks = await this.api.fetchTasks(this.fromDate);
+      console.log('taskList', tasks)
       this.updateTaskList(tasks);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
@@ -979,9 +988,16 @@ class SchedulerStatusWidget extends Widget {
 
   startPeriodicRefresh() {
     this.fetchTasks();
-    setInterval(() => {
+    this.refreshInterval = setInterval(() => {
       this.fetchTasks();
     }, 5000);
+  }
+
+  dispose() {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
+    super.dispose();
   }
 }
 
