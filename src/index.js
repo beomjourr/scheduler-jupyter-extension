@@ -351,7 +351,7 @@ class SchedulerAPI {
   
     // 개발환경세트는 새로운 환경 구성일 때만 필수
     const envSet = document.querySelector('input[name="envSet"]:checked')?.value;
-    if (envSet === 'custom' && !formData.imageName) {
+    if (envSet === 'custom' && !formData.imageId) {
       return '개발환경세트를 입력해주세요.';
     }
   
