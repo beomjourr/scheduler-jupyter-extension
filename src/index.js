@@ -37,6 +37,18 @@ const SCHEDULER_DETAIL_PAGE_URL = "http//aidev.samsungdisplay.net/#/aipt/namu/sc
 // SSL 인증서 검증 비활성화 (전역 설정)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
+const schdulerIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g clip-path="url(#clip0_316_2125)">
+    <path d="M3.90909 20.5L6.30455 18.5L3.90909 20.18V20.5ZM3 15V22L8 18.5L3 15Z" fill="#999999"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M18.1111 5H4.88889C3.84056 5 3 5.84375 3 6.875V13.5314C3.30529 13.4698 3.62129 13.4375 3.94488 13.4375C4.26817 13.4375 4.58386 13.4697 4.88889 13.5312V8.75H18.1111V18.125H8.6671C8.6671 18.7917 8.5269 19.4258 8.27417 20H18.1111C19.15 20 20 19.1562 20 18.125V6.875C20 5.84375 19.1594 5 18.1111 5ZM10.5556 15.3828L9.23333 16.7188L5.83333 13.3438L9.23333 9.96875L10.5556 11.3047L8.50139 13.3438L10.5556 15.3828ZM13.7667 16.7188L17.1667 13.3438L13.7667 9.96875L12.4444 11.3047L14.4986 13.3438L12.4444 15.3828L13.7667 16.7188Z" fill="#999999"/>
+  </g>
+  <defs>
+    <clipPath id="clip0_316_2125">
+      <rect width="24" height="24" fill="white"/>
+    </clipPath>
+  </defs>
+</svg>`;
+
 
 // API 클래스 구현
 class SchedulerAPI {
@@ -1018,19 +1030,7 @@ class SchedulerPanel extends SidePanel {
     this.addClass('jp-SchedulerPanel');
     this.title.icon = new LabIcon({ 
       name: 'scheduler:play',
-      svgstr: `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <g clip-path="url(#clip0_316_2125)">
-            <path d="M3.90909 20.5L6.30455 18.5L3.90909 20.18V20.5ZM3 15V22L8 18.5L3 15Z" fill="#999999"/>
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M18.1111 5H4.88889C3.84056 5 3 5.84375 3 6.875V13.5314C3.30529 13.4698 3.62129 13.4375 3.94488 13.4375C4.26817 13.4375 4.58386 13.4697 4.88889 13.5312V8.75H18.1111V18.125H8.6671C8.6671 18.7917 8.5269 19.4258 8.27417 20H18.1111C19.15 20 20 19.1562 20 18.125V6.875C20 5.84375 19.1594 5 18.1111 5ZM10.5556 15.3828L9.23333 16.7188L5.83333 13.3438L9.23333 9.96875L10.5556 11.3047L8.50139 13.3438L10.5556 15.3828ZM13.7667 16.7188L17.1667 13.3438L13.7667 9.96875L12.4444 11.3047L14.4986 13.3438L12.4444 15.3828L13.7667 16.7188Z" fill="#999999"/>
-          </g>
-          <defs>
-            <clipPath id="clip0_316_2125">
-              <rect width="24" height="24" fill="white"/>
-            </clipPath>
-          </defs>
-        </svg>
-      `
+      svgstr: schdulerIcon,
     });
     this.title.caption = '스케줄러';
     this.id = 'scheduler-panel';
@@ -1102,19 +1102,7 @@ const plugin = {
     const icon = document.createElement('div');
     const playIcon = new LabIcon({ 
       name: 'scheduler:play',
-      svgstr: `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <g clip-path="url(#clip0_316_2125)">
-            <path d="M3.90909 20.5L6.30455 18.5L3.90909 20.18V20.5ZM3 15V22L8 18.5L3 15Z" fill="#999999"/>
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M18.1111 5H4.88889C3.84056 5 3 5.84375 3 6.875V13.5314C3.30529 13.4698 3.62129 13.4375 3.94488 13.4375C4.26817 13.4375 4.58386 13.4697 4.88889 13.5312V8.75H18.1111V18.125H8.6671C8.6671 18.7917 8.5269 19.4258 8.27417 20H18.1111C19.15 20 20 19.1562 20 18.125V6.875C20 5.84375 19.1594 5 18.1111 5ZM10.5556 15.3828L9.23333 16.7188L5.83333 13.3438L9.23333 9.96875L10.5556 11.3047L8.50139 13.3438L10.5556 15.3828ZM13.7667 16.7188L17.1667 13.3438L13.7667 9.96875L12.4444 11.3047L14.4986 13.3438L12.4444 15.3828L13.7667 16.7188Z" fill="#999999"/>
-          </g>
-          <defs>
-            <clipPath id="clip0_316_2125">
-              <rect width="24" height="24" fill="white"/>
-            </clipPath>
-          </defs>
-        </svg>
-      `
+      svgstr: schdulerIcon,
     });
     playIcon.element({
       container: icon,
