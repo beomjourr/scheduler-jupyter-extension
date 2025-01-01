@@ -708,7 +708,6 @@ class ContentWidget extends Widget {
         body: '작업이 성공적으로 등록되었습니다.',
         buttons: [Dialog.okButton()]
       });
-      this.resetForm();
     } catch (error) {
       await showDialog({
         title: '오류',
