@@ -32,7 +32,7 @@ const API_CONFIG = {
   }
 };
 
-const SCHEDULER_DETAIL_PAGE_URL = "http//aidev.samsungdisplay.net/#/aipt/namu/schduler/job";
+const SCHEDULER_DETAIL_PAGE_URL = "http://aidev.samsungdisplay.net/#/aipt/namu/scheduler/job";
 
 // SSL 인증서 검증 비활성화 (전역 설정)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
