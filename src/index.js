@@ -55,10 +55,27 @@ class SchedulerAPI {
   constructor() {
     this.imageData = null;
     this.computeResourceData = null;
-    this.userId = this.getUserId();
+    this._userId = null;
   }
 
-  getUserId() {
+  async initialize() {
+    const notebookId = this.extractNotebookId();
+    if (notebookId) {
+      try {
+        const notebookDetail = await this.fetchNotebookDetail(notebookId);
+        if (notebookDetail?.notebook?.userId) {
+          this._userId = notebookDetail.notebook.userId;
+          return;
+        }
+      } catch (error) {
+        console.error('Error fetching notebook details:', error);
+      }
+    }
+    // notebook detail에서 userId를 가져오지 못한 경우 URL에서 추출
+    this._userId = this.extractUserIdFromUrl();
+  }
+
+  extractUserIdFromUrl() {
     try {
       const settings = ServerConnection.makeSettings();
       console.log('Server URL:', settings);
@@ -75,8 +92,13 @@ class SchedulerAPI {
     }
   }
 
+  getuserId() {
+    return this._userId;
+  }
+
   getUrlWithUserId(endpoint) {
-    return endpoint.replace('${userId}', this.userId);
+    console.log('userId', this._userId)
+    return endpoint.replace('${userId}', this._userId);
   }
 
   getResourceDetailsList(typeId) {
@@ -381,6 +403,9 @@ class ContentWidget extends Widget {
 
   async initializeContent() {
     try {
+      // userId 초기화를 먼저 수행
+      await this.api.initialize();
+
       const { taskGroups, imageData, computeResourceData } = 
         await this.api.initializeData();
   
