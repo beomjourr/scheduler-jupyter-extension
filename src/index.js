@@ -665,7 +665,12 @@ class ContentWidget extends Widget {
 
     // 실행 파일 경로
     if (this.currentPath && this.currentPath !== '파일이 선택되지 않았습니다') {
-      this.formData.executionFilePath = this.currentPath;
+      // 경로가 /로 시작하지 않으면 /를 추가
+      const normalizedPath = this.currentPath.startsWith('/') 
+      ? this.currentPath 
+      : `/${this.currentPath}`;
+        
+      this.formData.executionFilePath = normalizedPath;
       this.formData.codeType = this.currentPath.endsWith('.ipynb') ? 'CODE' : 'PYTHON';
     }
 
@@ -770,13 +775,14 @@ class ContentWidget extends Widget {
   }
 
   async updateFilePath(path) {
-    this.currentPath = path;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    this.currentPath = normalizedPath;
     const pathDisplay = this.node.querySelector('.current-path');
     if (pathDisplay) {
       pathDisplay.textContent = `현재 열린 파일: ${this.currentPath}`;
     }
 
-    this.formData.executionFilePath = path;
+    this.formData.executionFilePath = normalizedPath;
     this.formData.codeType = path.endsWith('.ipynb') ? 'CODE' : 'PYTHON';
     this.toggleSections(path);
   }
