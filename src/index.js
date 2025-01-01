@@ -825,12 +825,58 @@ class ContentWidget extends Widget {
 
   updateCommand() {
     if (this.commandInput && !this.commandInput.disabled) {
+      const currentCommand = this.commandInput.value;
+      let paramStart = -1;
+      let paramEnd = -1;
+      let inParam = false;
+  
+      // 현재 명령어를 순회하면서 파라미터 영역 찾기
+      for (let i = 0; i < currentCommand.length; i++) {
+        if (currentCommand.startsWith('--', i)) {
+          if (!inParam) {
+            if (paramStart === -1) {
+              paramStart = i;
+            }
+            inParam = true;
+          }
+        } else if (inParam && currentCommand[i] === ' ') {
+          inParam = false;
+          paramEnd = i;
+        }
+      }
+      if (inParam) {
+        paramEnd = currentCommand.length;
+      }
+  
+      // 명령어를 세 부분으로 나누기: 앞부분, 파라미터 부분, 뒷부분
+      let prefix = '';
+      let suffix = '';
+  
+      if (paramStart !== -1) {
+        prefix = currentCommand.substring(0, paramStart).trim();
+        suffix = currentCommand.substring(paramEnd).trim();
+      } else {
+        prefix = currentCommand.trim();
+      }
+  
+      // 현재 파라미터들로 새로운 파라미터 문자열 생성
       const paramCommands = Array.from(this.parameters.entries())
         .map(([key, value]) => `--${key}=${value}`)
         .join(' ');
-
-      this.commandInput.value = paramCommands;
-      this.formData.executionCommand = paramCommands;
+  
+      // 세 부분 다시 조합
+      let newCommand = prefix;
+      if (paramCommands) {
+        newCommand = newCommand
+          ? `${newCommand} ${paramCommands}`
+          : paramCommands;
+      }
+      if (suffix) {
+        newCommand = `${newCommand} ${suffix}`;
+      }
+  
+      this.commandInput.value = newCommand;
+      this.formData.executionCommand = newCommand;
     }
   }
 
