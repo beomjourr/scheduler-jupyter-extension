@@ -264,20 +264,15 @@ class SchedulerAPI {
 
   async createTask(taskData) {
     try {
-      const enrichedTaskData = {
-        ...taskData,
-        createUserId: this.getUserId(),
-        namespace: taskData.namespace || "",
-      };
-
-      const endpoint = this.getUrlWithUserId(API_CONFIG.endpoints.createTask);
-      console.log('taskData', enrichedTaskData);
-      const response = await axios.post(`${API_CONFIG.baseURL}${endpoint}`, enrichedTaskData);
-
+      const endpoint = API_CONFIG.endpoints.createTask;
+      const response = await axios.post(`${API_CONFIG.baseURL}${endpoint}`, taskData);
+      
+      console.log('createTaskResponse', response)
+  
       if (!response.data) {
         throw new Error('작업 생성에 실패했습니다.');
       }
-
+  
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || '작업 생성에 실패했습니다.');
