@@ -85,7 +85,7 @@ class SchedulerAPI {
         return match[1].replace('-', '.');
       }
       console.log('찾기 실패 window.location.href', window.location.href);
-      return "beomjourr.park";
+      return null;
     } catch (error) {
       console.error("Error extracting user ID:", error);
       return null;
@@ -254,6 +254,7 @@ class SchedulerAPI {
         + `?fromDate=${fromDate}`;
         
       const response = await axios.get(`${API_CONFIG.baseURL}${endpoint}`);
+      console.log('fetchTasksResponse', response)
       return response.data.data.data;
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
@@ -333,7 +334,7 @@ class SchedulerAPI {
       if (match && match[1]) {
         return match[1];
       }
-      return "1895";
+      return null;
     } catch (error) {
       console.error("Error extracting notebook ID:", error);
       return null;
