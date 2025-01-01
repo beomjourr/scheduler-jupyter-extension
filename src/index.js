@@ -568,7 +568,18 @@ class ContentWidget extends Widget {
             <input type="text" class="param-value-input" value="${value}" />
           </td>
           <td class="param-row-action">
-            <button class="btn btn-small btn-danger">삭제</button>
+            <button class="icon-button delete btn-danger" title="파라미터 삭제">          
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g clip-path="url(#clip0_313_2097)">
+                  <path d="M6.85714 18.2222C6.85714 19.2 7.62857 20 8.57143 20H15.4286C16.3714 20 17.1429 19.2 17.1429 18.2222V7.55556H6.85714V18.2222ZM8.96571 11.8933L10.1743 10.64L12 12.5244L13.8171 10.64L15.0257 11.8933L13.2086 13.7778L15.0257 15.6622L13.8171 16.9156L12 15.0311L10.1829 16.9156L8.97429 15.6622L10.7914 13.7778L8.96571 11.8933ZM15 4.88889L14.1429 4H9.85714L9 4.88889H6V6.66667H18V4.88889H15Z" fill="#CCCCCC"/>
+                </g>
+                <defs>
+                  <clipPath id="clip0_313_2097">
+                    <rect width="24" height="24" fill="white"/>
+                  </clipPath>
+                </defs>
+              </svg>
+            </button>
           </td>
         `;
 
@@ -1007,9 +1018,19 @@ class SchedulerPanel extends SidePanel {
     this.addClass('jp-SchedulerPanel');
     this.title.icon = new LabIcon({ 
       name: 'scheduler:play',
-      svgstr: `<svg xmlns="http://www.w3.org/2000/svg" width="16" viewBox="0 0 24 24">
-        <path d="M8 5v14l11-7z"/>
-      </svg>`
+      svgstr: `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g clip-path="url(#clip0_316_2125)">
+            <path d="M3.90909 20.5L6.30455 18.5L3.90909 20.18V20.5ZM3 15V22L8 18.5L3 15Z" fill="#999999"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M18.1111 5H4.88889C3.84056 5 3 5.84375 3 6.875V13.5314C3.30529 13.4698 3.62129 13.4375 3.94488 13.4375C4.26817 13.4375 4.58386 13.4697 4.88889 13.5312V8.75H18.1111V18.125H8.6671C8.6671 18.7917 8.5269 19.4258 8.27417 20H18.1111C19.15 20 20 19.1562 20 18.125V6.875C20 5.84375 19.1594 5 18.1111 5ZM10.5556 15.3828L9.23333 16.7188L5.83333 13.3438L9.23333 9.96875L10.5556 11.3047L8.50139 13.3438L10.5556 15.3828ZM13.7667 16.7188L17.1667 13.3438L13.7667 9.96875L12.4444 11.3047L14.4986 13.3438L12.4444 15.3828L13.7667 16.7188Z" fill="#999999"/>
+          </g>
+          <defs>
+            <clipPath id="clip0_316_2125">
+              <rect width="24" height="24" fill="white"/>
+            </clipPath>
+          </defs>
+        </svg>
+      `
     });
     this.title.caption = '스케줄러';
     this.id = 'scheduler-panel';

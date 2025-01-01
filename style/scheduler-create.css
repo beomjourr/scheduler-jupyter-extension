@@ -131,7 +131,33 @@ textarea {
   font-weight: bold;
 }
 
+.icon-button {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--jp-brand-color1);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-button:hover {
+  background-color: var(--jp-layout-color2);
+}
+
+.icon-button.btn-danger {
+  color: var(--jp-error-color0);
+}
+
+.icon-button.btn-danger:hover {
+  background-color: rgba(var(--jp-error-color0-rgb), 0.1);
+}
+
 .param-row-action {
+  width: 40px;
   text-align: center;
 }
 
@@ -156,10 +182,6 @@ textarea {
 .btn-small {
   padding: 4px 8px;
   font-size: var(--jp-ui-font-size0);
-}
-
-.btn-danger {
-  background-color: var(--jp-error-color1);
 }
 
 .current-path {
