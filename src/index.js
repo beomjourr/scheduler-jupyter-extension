@@ -123,9 +123,7 @@ class SchedulerAPI {
       return {
         ...formData,
         resourceCpu: resourceInfo.cpu,
-        resourceMemory: resourceInfo.memory?.endsWith("G")
-          ? resourceInfo.memory
-          : resourceInfo.memory + "G",
+        resourceMemory: resourceInfo.memory,
         resourceGpu: resourceInfo.gpu,
         resourceGpuType: resourceInfo.gpuType || "",
         resourceName: resourceInfo.name
@@ -679,7 +677,9 @@ class ContentWidget extends Widget {
       
       if (resourceInfo) {
         this.formData.resourceCpu = resourceInfo.cpu;
-        this.formData.resourceMemory = resourceInfo.memory;
+        this.formData.resourceMemory = resourceInfo.memory?.endsWith("G")
+          ? resourceInfo.memory
+          : resourceInfo.memory + "G";
         this.formData.resourceGpu = resourceInfo.gpu;
         this.formData.resourceGpuType = resourceInfo.gpuType || "";
         this.formData.resourceName = resourceInfo.name;
