@@ -123,7 +123,9 @@ class SchedulerAPI {
       return {
         ...formData,
         resourceCpu: resourceInfo.cpu,
-        resourceMemory: resourceInfo.memory,
+        resourceMemory: resourceInfo.memory?.endsWith("G")
+          ? resourceInfo.memory
+          : resourceInfo.memory + "G",
         resourceGpu: resourceInfo.gpu,
         resourceGpuType: resourceInfo.gpuType || "",
         resourceName: resourceInfo.name
