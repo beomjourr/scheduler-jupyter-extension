@@ -728,8 +728,22 @@ class ContentWidget extends Widget {
     this.formData.userName = this.notebookEnvData?.userName || "";
   }
 
+  isValidPath(path) {
+    return path.startsWith('/home/namu/myspace');
+  }  
+
   async handleSubmit() {
     this.saveFormData();
+    
+    if (!this.isValidPath(this.formData.executionFilePath)) {
+      await showDialog({
+        title: '경로 오류',
+        body: '파일은 /home/namu/myspace 하위 경로 내에서만 선택할 수 있습니다.',
+        buttons: [Dialog.okButton()]
+      });
+      return;
+    }
+  
     console.log('Form Data to submit:', this.formData);
     
     const validationError = this.api.validateForm(this.formData);
@@ -741,7 +755,7 @@ class ContentWidget extends Widget {
       });
       return;
     }
-
+  
     try {
       await this.api.createTask(this.formData);
       await showDialog({
@@ -757,7 +771,7 @@ class ContentWidget extends Widget {
       });
     }
   }
-
+  
   resetForm() {
     const elements = {
       taskName: '',
@@ -817,7 +831,7 @@ class ContentWidget extends Widget {
     if (pathDisplay) {
       pathDisplay.textContent = `현재 열린 파일: ${this.currentPath}`;
     }
-
+  
     this.formData.executionFilePath = normalizedPath;
     this.formData.codeType = path.endsWith('.ipynb') ? 'CODE' : 'PYTHON';
     this.toggleSections(path);
@@ -1251,7 +1265,7 @@ const plugin = {
           const isValidFile = item.path.endsWith('.py') || item.path.endsWith('.ipynb');
           
           if (isValidFile) {
-            panel.updateFilePath(item.path);
+              panel.updateFilePath(item.path);
           }
         }
       });
