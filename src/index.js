@@ -393,6 +393,7 @@ class ContentWidget extends Widget {
     this.node.innerHTML = schedulerTemplate;
     this.commandInput = this.node.querySelector('#command');
     
+    this.setupFileChangeListener(app);
     this.initializeContent();
     this.initializeEventHandlers();
   }
@@ -630,6 +631,18 @@ class ContentWidget extends Widget {
         });
       });
     }
+  }
+
+  setupFileChangeListener(app) {
+    // 파일 시스템 변경 감지
+    app.serviceManager.contents.fileChanged.connect((_, change) => {
+      if (this.currentPath === change.oldValue?.path) {
+        const newPath = change.newValue?.path;
+        if (newPath) {
+          this.updateFilePath(newPath);
+        }
+      }
+    });
   }
 
   saveFormData() {
@@ -1188,14 +1201,37 @@ const plugin = {
     toolbarButton.node.appendChild(button);
     app.shell.add(toolbarButton, 'top', { rank: 1000 });
 
-    // 현재 활성화된 파일이 변경될 때 버튼 표시/숨김 처리
+    // 파일 시스템 변경 감지를 위한 리스너
+    app.serviceManager.contents.fileChanged.connect((_, change) => {
+      const currentWidget = app.shell.currentWidget;
+      if (currentWidget instanceof DocumentWidget) {
+        const currentPath = currentWidget.context.path;
+        if (change.oldValue?.path === currentPath && change.type === 'rename') {
+          panel.updateFilePath(change.newValue.path);
+        }
+      }
+    });
+
+    // 문서 위젯 변경 감지
     app.shell.currentChanged.connect((_, change) => {
       if (change.newValue instanceof DocumentWidget) {
-        const path = change.newValue.context.path;
+        const context = change.newValue.context;
+        const path = context.path;
         const isValidFile = path.endsWith('.py') || path.endsWith('.ipynb');
         
         if (isValidFile) {
           toolbarButton.show();
+          panel.updateFilePath(path);
+          
+          // 문서 내용 변경 감지
+          context.fileChanged.connect(() => {
+            panel.updateFilePath(context.path);
+          });
+          
+          // 문서 경로 변경 감지
+          context.pathChanged.connect(() => {
+            panel.updateFilePath(context.path);
+          });
         } else {
           toolbarButton.hide();
         }
@@ -1203,25 +1239,13 @@ const plugin = {
         toolbarButton.hide();
       }
     });
-  
-    // 패널을 왼쪽 사이드바에 추가
-    app.shell.add(panel, 'left', { rank: 200 });
-
-    // 활성 위젯 변경 이벤트 리스너 
-    app.shell.currentChanged.connect((_, change) => {
-      if (change.newValue instanceof DocumentWidget) {
-        const path = change.newValue.context.path;
-        const isValidFile = path.endsWith('.py') || path.endsWith('.ipynb');
-        
-        if (path && isValidFile) {
-          panel.updateFilePath(path);
-        }
-      }
-    });
 
     // 파일 브라우저 선택 변경 이벤트 리스너
-    if (fileBrowser?.defaultBrowser?.selectionChanged) {
-      fileBrowser.defaultBrowser.selectionChanged.connect((_, selection) => {
+    if (fileBrowser?.defaultBrowser) {
+      const browser = fileBrowser.defaultBrowser;
+      
+      // 선택 변경 감지
+      browser.selectionChanged.connect((_, selection) => {
         if (selection.first) {
           const item = selection.first;
           const isValidFile = item.path.endsWith('.py') || item.path.endsWith('.ipynb');
@@ -1231,9 +1255,23 @@ const plugin = {
           }
         }
       });
+
+      // 파일 시스템 변경 감지
+      browser.model.fileChanged.connect((_, change) => {
+        const currentWidget = app.shell.currentWidget;
+        if (currentWidget instanceof DocumentWidget) {
+          const path = currentWidget.context.path;
+          if (path === change.oldValue?.path && change.type === 'rename') {
+            panel.updateFilePath(change.newValue.path);
+          }
+        }
+      });
     } else {
-      console.warn('File browser or selection changed event not available');
+      console.warn('File browser not available');
     }
+  
+    // 패널을 왼쪽 사이드바에 추가
+    app.shell.add(panel, 'left', { rank: 200 });
   }
 };
 
