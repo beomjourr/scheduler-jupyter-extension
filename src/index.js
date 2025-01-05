@@ -827,6 +827,7 @@ class ContentWidget extends Widget {
   async updateFilePath(path) {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     this.currentPath = normalizedPath;
+    
     const pathDisplay = this.node.querySelector('.current-path');
     if (pathDisplay) {
       pathDisplay.textContent = `현재 열린 파일: ${this.currentPath}`;
@@ -834,6 +835,27 @@ class ContentWidget extends Widget {
   
     this.formData.executionFilePath = normalizedPath;
     this.formData.codeType = path.endsWith('.ipynb') ? 'CODE' : 'PYTHON';
+  
+    // Python 파일인 경우 실행 명령어 자동 업데이트
+    if (path.endsWith('.py') && this.commandInput) {
+      const fileName = path.split('/').pop();
+      const currentCommand = this.commandInput.value;
+      const paramStart = currentCommand.indexOf('--');
+      
+      // 새로운 기본 명령어 생성
+      const baseCommand = `python ${fileName}`;
+      
+      // 파라미터가 있었다면 유지하고, 없었다면 새 명령어만 설정
+      if (paramStart !== -1) {
+        this.commandInput.value = baseCommand + ' ' + currentCommand.substring(paramStart);
+      } else {
+        this.commandInput.value = baseCommand;
+      }
+      
+      this.formData.executionCommand = this.commandInput.value;
+    }
+  
+    // 파일 타입에 따른 UI 섹션 토글
     this.toggleSections(path);
   }
 
