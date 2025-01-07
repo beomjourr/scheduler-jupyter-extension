@@ -1057,13 +1057,14 @@ class SchedulerStatusWidget extends Widget {
 
     if (!Array.isArray(tasks) || tasks.length === 0) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML =
+      emptyRow.innerHTML = 
         '<td colspan="2" style="text-align: center;">작업이 없습니다</td>';
       taskList.appendChild(emptyRow);
       return;
     }
 
     const recentTasks = [...tasks]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 20);
 
     recentTasks.forEach(task => {
