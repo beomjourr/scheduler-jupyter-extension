@@ -16,16 +16,14 @@ import { schedulerStatusTemplate } from './templates/scheduler-status';
 import '../style/index.css';
 
 import axios from 'axios';
-import { mockResponse } from './mockData';
 
 // API 설정
 const API_CONFIG = {
   baseURL: 'https://api.namu.dev.samsungdisplay.net:32443',
-  computeResourcesBaseURL: 'http://aidev.samsungdisplay.net',
   endpoints: {
     taskGroups: '/extension/scheduler/experiments/users/${userId}',
     images: '/extension/images/users/${userId}',
-    computeResources: '/resources',
+    computeResources: '/extension/resources',
     createTask: '/extension/scheduler/runs',
     tasks: '/extension/notebooks/${notebookId}/runs',
     notebookDetail: '/extension/notebooks/${notebookId}/detail'
@@ -180,24 +178,22 @@ class SchedulerAPI {
 
   async fetchComputeResourceData() {
     try {
-      // const response = await axios.get(
-      //   `${API_CONFIG.computeResourcesBaseURL}${API_CONFIG.endpoints.computeResources}`
-      // );
-
-      const response = mockResponse;
+      const response = await axios.get(
+        `${API_CONFIG.baseURL}${API_CONFIG.endpoints.computeResources}`
+      );
       
-      const resourceItems = response.data[0]?.children?.[0]?.children?.[0]?.children || [];
+      const resourceItems = response.data.data || [];
       const cpuOnlyResources = [];
       const cpuGpuResources = [];
   
       resourceItems.forEach((item) => {
-        const resourceValues = this.extractResourceValues(item.contents.codeValue);
+        const resourceValues = this.extractResourceValues(item.codeValue);
         const resourceItem = {
-          name: item.contents.messageDefault,
+          name: item.messageDefault,
           cpu: resourceValues.cpu,
           memory: resourceValues.memory,
           gpu: resourceValues.gpu,
-          gpuType: "",
+          gpuType: resourceValues.gpuType,
         };
   
         if (parseInt(resourceValues.gpu) > 0) {
@@ -310,15 +306,17 @@ class SchedulerAPI {
       const cpuMatch = codeValue.match(/"cpu":(\d+)/);
       const gpuMatch = codeValue.match(/"gpu":(\d+)/);
       const memMatch = codeValue.match(/"mem":(\d+)/);
+      const gpuTypeMatch = codeValue.match(/“gpu_type”:”([^”]+)”/);
 
       return {
         cpu: cpuMatch ? cpuMatch[1] : '0',
         gpu: gpuMatch ? gpuMatch[1] : '0',
         memory: memMatch ? memMatch[1] : '0',
+        gpuType: gpuTypeMatch ? gpuTypeMatch[1] : "",
       };
     } catch (error) {
       console.error('Failed to extract resource values:', error);
-      return { cpu: '0', gpu: '0', memory: '0' };
+      return { cpu: '0', gpu: '0', memory: '0', gputType: "" };
     }
   }
 
