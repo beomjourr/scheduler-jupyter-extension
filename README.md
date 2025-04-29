@@ -87,4 +87,4 @@ jupyter lab
 ```bash
 save_extension.sh 파일 실행
 ```
-
+output 폴더 안에 extension 설치파일이 생성됨.
