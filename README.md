@@ -82,3 +82,9 @@ source test_env/bin/activate  # Windows: test_env\Scripts\activate
 pip install scheduler-jupyter-extension
 jupyter lab
 ```
+
+## extension 설치파일 생성방법
+```bash
+save_extension.sh 파일 실행
+```
+
