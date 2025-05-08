@@ -973,10 +973,6 @@ class ContentWidget extends Widget {
   updateEnvDetailOptions(processor) {
     const envDetailSelect = this.node.querySelector('#envDetail');
     if (!envDetailSelect || !this.imageData?.images) return;
-    
-    const filteredImages = this.imageData.images.filter(
-      img => img.state === "PUSHED" && img.processor === processor
-    );
 
     const [processorValue, versionValue, ideValue] = processor.split(' / ');
     
