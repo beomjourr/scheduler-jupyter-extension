@@ -512,12 +512,15 @@ class ContentWidget extends Widget {
     const envDetailSelect = this.node.querySelector('#envDetail');
     
     if (!envTypeSelect || !this.imageData?.images) return;
-    
-    envTypeSelect.innerHTML = '<option value="">환경 선택</option>';
-    envDetailSelect.innerHTML = '<option value="">세부 내용 선택</option>';
-    
+     
     const filteredImages = this.imageData.images.filter(img => img.state === "PUSHED");
-    const processors = [...new Set(filteredImages.map(img => img.processor))];
+
+    // 'CUSTOM' or 'CPU / 1.0.2 / JupyterLab'과 같은 형식
+    const processors = [...new Set(filteredImages.map(img =>
+      img.type !== 'DEFAULT' ? 'CUSTOM' : `${img.processor} / ${img.version} / ${img.ide}`
+    ))];
+
+    envTypeSelect.innerHTML = `<option value="" disabled selected hidden>환경 선택</options>`'
     
     processors.forEach(processor => {
       const option = document.createElement('option');
@@ -941,7 +944,7 @@ class ContentWidget extends Widget {
   updateResourceOptions(computeData) {
     const resourceTypeSelect = this.node.querySelector('#resourceType');
     if (resourceTypeSelect && computeData?.types) {
-      resourceTypeSelect.innerHTML = '<option value="">자원 종류</option>';
+      resourceTypeSelect.innerHTML = '<option value="" disabled selected hidden>자원 종류</option>';
       computeData.types.forEach(type => {
         const option = document.createElement('option');
         option.value = type.id;
@@ -955,7 +958,7 @@ class ContentWidget extends Widget {
     const resourceDetailSelect = this.node.querySelector('#resourceDetail');
     if (!resourceDetailSelect) return;
   
-    resourceDetailSelect.innerHTML = '<option value="">세부 자원</option>';
+    resourceDetailSelect.innerHTML = '<option value="" disabled selected hidden>세부 자원</option>';
     
     const details = this.api.getResourceDetailsList(typeId);
     details.forEach(detail => {
@@ -969,12 +972,29 @@ class ContentWidget extends Widget {
   updateEnvDetailOptions(processor) {
     const envDetailSelect = this.node.querySelector('#envDetail');
     if (!envDetailSelect || !this.imageData?.images) return;
-
-    envDetailSelect.innerHTML = '<option value="">세부 내용 선택</option>';
     
     const filteredImages = this.imageData.images.filter(
       img => img.state === "PUSHED" && img.processor === processor
     );
+
+    const [processorValue, versionValue, ideValue] = processor.split(' / ');
+    
+    const filteredImages = [];
+    if (processor === 'CUSTOM') {
+      filteredImages = imageData.images.filter((img) =>
+        img.type !== 'DEFAULT' && img.state === 'PUSHED'
+      );
+    } else {
+      filteredImages = imageData.images.filter((img) =>
+        img.processor === processorValue &&
+        img.version === versionValue &&
+        img.ide === ideValue &&
+        img.type === 'DEFAULT' &&
+        img.state === 'PUSHED'
+      );
+    }
+
+    envDetailSelect.innerHTML = `<option value="" disabled selected hidden>세부 내용 선택</option>`;
 
     filteredImages.forEach(image => {
       const option = document.createElement('option');
