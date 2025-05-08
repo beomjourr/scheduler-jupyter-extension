@@ -1114,7 +1114,7 @@ class SchedulerStatusWidget extends Widget {
   }
 
   getMomentTimeFormat(time) {
-    return moment.tz(time, 'Asia/Seoul').format('YYYY-MM-DD HH:mm);
+    return moment.tz(time, 'Asia/Seoul').format('YYYY-MM-DD HH:mm');
   }
 
   getStatusIcon(status) {
