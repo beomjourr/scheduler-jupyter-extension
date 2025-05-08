@@ -521,7 +521,7 @@ class ContentWidget extends Widget {
       img.type !== 'DEFAULT' ? 'CUSTOM' : `${img.processor} / ${img.version} / ${img.ide}`
     ))];
 
-    envTypeSelect.innerHTML = `<option value="" disabled selected hidden>환경 선택</options>`'
+    envTypeSelect.innerHTML = `<option value="" disabled selected hidden>환경 선택</options>`;
     
     processors.forEach(processor => {
       const option = document.createElement('option');
