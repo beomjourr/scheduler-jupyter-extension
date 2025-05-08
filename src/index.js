@@ -976,13 +976,13 @@ class ContentWidget extends Widget {
 
     const [processorValue, versionValue, ideValue] = processor.split(' / ');
     
-    const filteredImages = [];
+    let filteredImages = [];
     if (processor === 'CUSTOM') {
-      filteredImages = imageData.images.filter((img) =>
+      filteredImages = this.imageData.images.filter((img) =>
         img.type !== 'DEFAULT' && img.state === 'PUSHED'
       );
     } else {
-      filteredImages = imageData.images.filter((img) =>
+      filteredImages = this.imageData.images.filter((img) =>
         img.processor === processorValue &&
         img.version === versionValue &&
         img.ide === ideValue &&
