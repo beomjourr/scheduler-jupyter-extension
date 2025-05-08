@@ -704,7 +704,7 @@ class ContentWidget extends Widget {
     // 실행 파일 경로
     if (this.currentPath && this.currentPath !== '파일이 선택되지 않았습니다') {
       // 경로가 /로 시작하지 않으면 /를 추가
-      const normalizedPath = this.currentPath.startsWith('/') 
+      const normalizedPath = '/home/namu' + this.currentPath.startsWith('/') 
       ? this.currentPath 
       : `/${this.currentPath}`;
         
@@ -827,7 +827,7 @@ class ContentWidget extends Widget {
   }
 
   async updateFilePath(path) {
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const normalizedPath = '/home/namu' + path.startsWith('/') ? path : `/${path}`;
     this.currentPath = normalizedPath;
     
     const pathDisplay = this.node.querySelector('.current-path');
