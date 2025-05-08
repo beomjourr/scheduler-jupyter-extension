@@ -1104,8 +1104,8 @@ class SchedulerStatusWidget extends Widget {
     tr.className = 'task-row';
     tr.innerHTML = `
       <td class="name-cell">${task.name}</td>
-      <td class="name-cell">${getMomentTimeFormat(task.createdAt) || ''}</td>
-      <td class="name-cell">${getMomentTimeFormat(task.finishedAt) || ''}</td>
+      <td class="name-cell">${this.getMomentTimeFormat(task.createdAt) || ''}</td>
+      <td class="name-cell">${this.getMomentTimeFormat(task.finishedAt) || ''}</td>
       <td>
         <div class="status-cell">
           ${this.getStatusIcon(task.status)}
