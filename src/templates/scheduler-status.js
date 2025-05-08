@@ -71,8 +71,10 @@ export const schedulerStatusTemplate = `
   <table class="task-table">
     <thead>
       <tr>
-        <th style="width: 120px">상태</th>
         <th>스케줄러 명</th>
+        <th style="width: 120px">시작일자</th>
+        <th style="width: 120px">종료일자</th>
+        <th style="width: 120px">상태</th>
       </tr>
     </thead>
     <tbody id="taskList"></tbody>
