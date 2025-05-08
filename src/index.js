@@ -16,6 +16,7 @@ import { schedulerStatusTemplate } from './templates/scheduler-status';
 import '../style/index.css';
 
 import axios from 'axios';
+import moment from 'moment';
 
 // API 설정
 const API_CONFIG = {
@@ -1101,17 +1102,23 @@ class SchedulerStatusWidget extends Widget {
     const tr = document.createElement('tr');
     tr.className = 'task-row';
     tr.innerHTML = `
+      <td class="name-cell">${task.name}</td>
+      <td class="name-cell">${getMomentTimeFormat(task.createdAt) || ''}</td>
+      <td class="name-cell">${getMomentTimeFormat(task.finishedAt) || ''}</td>
       <td>
         <div class="status-cell">
           ${this.getStatusIcon(task.status)}
           <span class="status ${task.status}">${task.status}</span>
         </div>
       </td>
-      <td class="name-cell">${task.name}</td>
     `;
 
     tr.addEventListener('click', () => this.openTaskDetail(task));
     return tr;
+  }
+
+  getMomentTimeFormat(time) {
+    return moment.tz(time, 'Asia/Seoul').format('YYYY-MM-DD HH:mm);
   }
 
   getStatusIcon(status) {
