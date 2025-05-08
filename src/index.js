@@ -737,14 +737,14 @@ class ContentWidget extends Widget {
   async handleSubmit() {
     this.saveFormData();
     
-    if (!this.isValidPath(this.formData.executionFilePath)) {
-      await showDialog({
-        title: '경로 오류',
-        body: '파일은 /home/namu/myspace 하위 경로 내에서만 선택할 수 있습니다.',
-        buttons: [Dialog.okButton()]
-      });
-      return;
-    }
+    // if (!this.isValidPath(this.formData.executionFilePath)) {
+    //   await showDialog({
+    //     title: '경로 오류',
+    //     body: '파일은 /home/namu/myspace 하위 경로 내에서만 선택할 수 있습니다.',
+    //     buttons: [Dialog.okButton()]
+    //   });
+    //   return;
+    // }
   
     console.log('Form Data to submit:', this.formData);
     
