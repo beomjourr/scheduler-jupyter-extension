@@ -1105,7 +1105,7 @@ class SchedulerStatusWidget extends Widget {
       case "Error":
       case "Failed":
         return `<span style="font-size: 16px;">🔴</span>`;
-      case "Succeded":
+      case "Succeeded":
         return `<span style="font-size: 16px;">🟢</span>`;
       default:
         return "⚪";
