@@ -933,10 +933,15 @@ class ContentWidget extends Widget {
     const groupSelect = this.node.querySelector('#groupName');
     if (groupSelect && Array.isArray(taskGroups)) {
       groupSelect.innerHTML = '<option value="">선택하세요</option>';
-      taskGroups.forEach(group => {
+      taskGroups.forEach((group, index) => {
         const option = document.createElement('option');
         option.value = group.id;
         option.textContent = group.name;
+        // 첫 번째 그룹을 기본으로 선택
+        if (index === 0) {
+          option.selected = true;
+          this.formData.experimentId = group.id;
+        }
         groupSelect.appendChild(option);
       });
     }
