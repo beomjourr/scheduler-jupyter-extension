@@ -54,10 +54,8 @@ export const schedulerTemplate = `
         <div class="form-row" id="envSelectors">
           <div class="flex-row">
             <select id="envType" class="flex-1">
-              <option value="">환경 선택</option>
             </select>
             <select id="envDetail" class="flex-2">
-              <option value="">세부 내용 선택</option>
             </select>
           </div>
         </div>
@@ -66,10 +64,8 @@ export const schedulerTemplate = `
           <label class="form-label required">연산 필요 자원</label>
           <div class="flex-row">
             <select id="resourceType" class="flex-1">
-              <option value="">자원 종류</option>
             </select>
             <select id="resourceDetail" class="flex-2">
-              <option value="">세부 자원</option>
             </select>
           </div>
         </div>
